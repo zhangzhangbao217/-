@@ -216,7 +216,8 @@ const toggleZoom = (idx) => {
 </script>
 
 <style scoped>
-/* 你的原有样式（一字未改） */
+
+  /* 页面整体浪漫背景 */
 .album-container {
   min-height: 100vh;
   display: flex;
@@ -225,6 +226,7 @@ const toggleZoom = (idx) => {
   overflow: hidden;
   margin: 0;
   padding: 0;
+  background: linear-gradient(120deg, #ffdddd, #ffe6e6);
 }
 
 .romantic-bg {
@@ -233,8 +235,7 @@ const toggleZoom = (idx) => {
   left: 0;
   width: 100vw;
   height: 100vh;
-  background: linear-gradient(120deg, #fff5f8, #ffe6ef);
-  background-size: 200% 200%;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' fill='%23ffcccc' opacity='0.1'%3E%3Cpath d='M10 15C8.343 15 7 13.657 7 12c0-2 3-4 3-4s3 2 3 4c0 1.657-1.343 3-3 3zm0-10a2 2 0 1 0 0-4 2 2 0 0 0 0 4z'/%3E%3C/svg%3E") repeat;
   animation: bgFlow 18s infinite ease;
   z-index: -1;
 }
@@ -242,13 +243,6 @@ const toggleZoom = (idx) => {
   0% { background-position: 0% 50%; }
   50% { background-position: 100% 50%; }
   100% { background-position: 0% 50%; }
-}
-
-.love-top-decoration {
-  height: 60px;
-  background: linear-gradient(90deg, #ff9a9e, #fad0c4);
-  border-radius: 0 0 20px 20px;
-  box-shadow: 0 2px 15px rgba(255, 107, 158, 0.2);
 }
 
 .album-header {
@@ -395,6 +389,7 @@ const toggleZoom = (idx) => {
     font-size: 14px;
   }
 }
+
 /* 调整轮播图和照片大小 */
 .fullscreen-carousel {
   height: 70vh !important; /* 增大轮播图高度 */
@@ -515,3 +510,4 @@ const toggleZoom = (idx) => {
   }
 }
 </style>
+

@@ -60,6 +60,11 @@
           <el-menu-item index="4" class="menu-item" @click="goToLoveAlbum">
             <el-icon><Picture /></el-icon>
             <template #title>恋爱相册</template>
+            //新增点点滴滴
+          </el-menu-item>
+          <el-menu-item index="5" class="menu-item" @click="goToDianDianDiDi"> <!-- 新增条目 -->
+            <el-icon><Document /></el-icon> <!-- 使用合适的图标 -->
+            <template #title>点点滴滴</template>
           </el-menu-item>
         </el-menu>
       </el-aside>
