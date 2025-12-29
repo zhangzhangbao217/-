@@ -63,7 +63,7 @@ const bucketList = ref<BucketItem[]>([
   { text: '一起穿情侣装逛街', completed: true },
   { text: '一起养一只宠物', completed: false },
   { text: '一起去海边看日落', completed: false },
-  { text: '一起拍一组写真', completed: false },
+  { text: '一起拍一组写真', completed: true },
   { text: '一起做一顿大餐', completed: true },
   { text: '一起去滑雪', completed: false },
   { text: '一起坐一次摩天轮', completed: false },
@@ -83,6 +83,14 @@ onMounted(() => {
 })
 
 const toggleComplete = (item: BucketItem) => {
+  // 只有管理员（你）可以修改状态
+  const isAdmin = localStorage.getItem('isAdmin') === 'true'
+  
+  if (!isAdmin) {
+    ElMessage.warning('只有主人可以标记完成哦，其他人只能看~')
+    return
+  }
+
   item.completed = !item.completed
   localStorage.setItem('love_bucket_list', JSON.stringify(bucketList.value))
   if (item.completed) {

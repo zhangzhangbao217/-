@@ -104,9 +104,11 @@ const handleLogin = async () => {
     // 第二步：模拟登录请求（替换为真实接口）
     setTimeout(() => {
       // 模拟登录成功
-      ElMessage.success('登录成功！❤️ 进入甜蜜小屋～')
+      ElMessage.success('暗号正确！欢迎进入甜蜜小屋～')
       // 存储token（模拟登录状态）
-      localStorage.setItem('token', 'love_token_123')
+      localStorage.setItem('token', 'love_token_1314521')
+      // 标记为管理员，允许修改内容
+      localStorage.setItem('isAdmin', 'true')
       // 记住密码逻辑
       if (loginForm.remember) {
         localStorage.setItem('loginInfo', JSON.stringify({
