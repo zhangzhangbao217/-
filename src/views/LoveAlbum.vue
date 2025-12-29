@@ -93,7 +93,15 @@ import {
 // 你的原有逻辑（一字未改）
 const router = useRouter()
 const goBack = () => router.push('/home')
-const photoList = ref([])
+const staticPhotos = [
+  '/4d73516d866b0b83635639b8f81e3c2c.jpg',
+  '/9b73ec5057f40e63f099161a50f70820.jpg',
+  '/d52fc37974aaffa0d02e9362f10e5d91.jpg',
+  '/d5653d2f76e32e0e4ce97aba54a0c6c9.jpg',
+  '/df49bc6ca7d5b77ace3eeaec5d0008c6.jpg',
+  '/ed2f20b1e6fa3f80f1544d618ccaa44c.jpg'
+]
+const photoList = ref([...staticPhotos])
 const isZoomed = ref(false)
 const activeZoomIdx = ref(-1)
 
@@ -135,15 +143,17 @@ const getPhotos = async () => {
       const request = store.getAll()
       request.onsuccess = (e) => {
         // 提取照片base64列表
-        const photos = e.target.result.map(item => item.base64)
-        photoList.value = photos
-        resolve(photos)
+        const dynamicPhotos = e.target.result.map(item => item.base64)
+        // 合并静态照片和动态照片
+        photoList.value = [...staticPhotos, ...dynamicPhotos]
+        resolve(photoList.value)
       }
     })
   } else {
     // 降级逻辑（原有localStorage）
     const raw = localStorage.getItem('loveAlbum')
-    photoList.value = raw ? JSON.parse(raw) : []
+    const dynamicPhotos = raw ? JSON.parse(raw) : []
+    photoList.value = [...staticPhotos, ...dynamicPhotos]
   }
 }
 
@@ -156,18 +166,22 @@ const syncToStorage = async () => {
     const clearTx = db.transaction('photos', 'readwrite')
     const clearStore = clearTx.objectStore('photos')
     clearStore.clear()
-    // 写入新数据
+    // 写入新数据（仅保存动态上传的照片，不重复保存静态照片）
     const tx = db.transaction('photos', 'readwrite')
     const store = tx.objectStore('photos')
-    photoList.value.forEach(base64 => {
-      store.add({ base64 })
+    photoList.value.forEach(item => {
+      // 如果不是静态照片路径，则保存
+      if (!staticPhotos.includes(item)) {
+        store.add({ base64: item })
+      }
     })
     tx.oncomplete = () => {
       ElMessage.success('照片已大容量保存，刷新不丢失')
     }
   } else {
     // 降级逻辑（原有localStorage）
-    localStorage.setItem('loveAlbum', JSON.stringify(photoList.value))
+    const dynamicPhotos = photoList.value.filter(item => !staticPhotos.includes(item))
+    localStorage.setItem('loveAlbum', JSON.stringify(dynamicPhotos))
     ElMessage.success('照片已保存')
   }
 }
