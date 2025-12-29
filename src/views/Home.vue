@@ -10,7 +10,7 @@
         <el-icon class="menu-toggle" @click="toggleSidebar">
           <Menu />
         </el-icon>
-        <span class="app-title">恋爱小窝管理中心</span>
+        <span class="app-title">张张包和小黄包的恋爱窝</span>
       </div>
       <div class="header-right">
         <el-dropdown @command="handleDropdownCommand">
@@ -60,7 +60,7 @@
           <el-menu-item index="4" class="menu-item" @click="goToLoveAlbum">
             <el-icon><Picture /></el-icon>
             <template #title>恋爱相册</template>
-            //新增点点滴滴
+<!--            新增点点滴滴-->
           </el-menu-item>
           <el-menu-item index="5" class="menu-item" @click="goToDianDianDiDi"> <!-- 新增条目 -->
             <el-icon><Document /></el-icon> <!-- 使用合适的图标 -->
@@ -102,7 +102,7 @@
             <div key="time-content">
               <!-- 已恋爱时长视图 -->
               <template v-if="currentView === 'loveDuration'">
-                <p>我们已经相爱：</p>
+                <p>张张包和张张小黄包：</p>
                 <p class="time-text">
                   {{ loveDuration.days }}天 {{ formatTime(loveDuration.hours) }}时 {{ formatTime(loveDuration.minutes) }}分 {{ formatTime(loveDuration.seconds) }}秒
                 </p>
@@ -170,16 +170,25 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, watch } from 'vue'
+import {ref, onMounted, onUnmounted, watch, defineComponent} from 'vue'
 import { useRouter } from 'vue-router'
 import dayjs from 'dayjs'
+import DianDianDiDi from "@/views/DianDianDiDi.vue";
 // 引入Element Plus组件和图标
 import {
   ElContainer, ElHeader, ElAside, ElMain,
   ElMenu, ElMenuItem, ElDropdown, ElDropdownMenu,
   ElDropdownItem, ElAvatar, ElCard, ElButton
 } from 'element-plus'
-import { Menu, ArrowDown, House, Calendar, Message, Picture } from '@element-plus/icons-vue'
+import {Menu, ArrowDown, House, Calendar, Message, Picture, Document} from '@element-plus/icons-vue'
+
+defineComponent({
+  name: 'Home',
+  components: {
+    // 注册 DianDianDiDi 组件（如果需要直接渲染）
+    DianDianDiDi,
+  },
+});
 
 const router = useRouter()
 // 跳转至纪念日管理页面
@@ -200,6 +209,10 @@ const goToSweetQuote = () => {
 const goToLoveAlbum = () => {
   router.push('/love-album')
 }
+//跳转到点点滴滴
+const goToDianDianDiDi = () => {
+  router.push({ name: 'DianDianDiDi' });
+};
 // 核心配置：你的恋爱开始时间（固定为2019-12-29 13:14:00）
 const userName = ref('亲爱的')
 const loveStartDate = ref('2019-12-29 13:14:00')
