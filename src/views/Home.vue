@@ -40,7 +40,11 @@
 
     <el-container class="main-wrapper">
       <!-- 侧边栏菜单 -->
-      <el-aside :width="isSidebarCollapse ? '64px' : '200px'" class="home-aside">
+      <el-aside
+          :width="isSidebarCollapse ? '0' : '200px'"
+          class="home-aside"
+          :class="{ 'is-mobile-hidden': isSidebarCollapse }"
+      >
         <el-menu
             default-active="1"
             class="aside-menu"
@@ -48,6 +52,7 @@
             text-color="#6d6875"
             active-text-color="#e63946"
             :collapse="isSidebarCollapse"
+            :collapse-transition="false"
         >
           <el-menu-item index="1" class="menu-item" @click="closeSidebarOnMobile">
             <el-icon><House /></el-icon>
@@ -77,7 +82,7 @@
       </el-aside>
 
       <!-- 主内容区 -->
-      <el-main class="home-main">
+      <el-main class="home-main" @click="closeSidebarOnMobile">
         <!-- 切换按钮（加hover动画） -->
         <div class="view-toggle-btn-group">
           <el-button
@@ -499,10 +504,10 @@ onUnmounted(() => {
 }
 /* 页面整体浪漫背景 */
 .home-container {
-  height: 100vh;
+  min-height: 100vh;
   background: linear-gradient(120deg, #fff9fb, #ffe6ef);
   position: relative;
-  overflow: hidden;
+  overflow-x: hidden;
 }
 
 /* 背景爱心纹理+缓慢浮动 */
@@ -624,15 +629,21 @@ onUnmounted(() => {
   }
   
   /* 移动端展开时的效果 */
-  .home-aside:not(.el-aside--collapse) {
+  .home-aside {
+    transition: transform 0.3s ease, width 0.3s ease !important;
+  }
+
+  .home-aside.is-mobile-hidden {
+    width: 0 !important;
+    transform: translateX(-100%);
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .home-aside:not(.is-mobile-hidden) {
     width: 200px !important;
     transform: translateX(0);
-  }
-  
-  .home-aside.el-aside--collapse {
-    width: 0 !important;
-    transform: translateX(-100%); /* 隐藏时向左移出屏幕 */
-    overflow: hidden;
+    opacity: 1;
   }
 
   .app-title {
@@ -648,8 +659,25 @@ onUnmounted(() => {
   }
 
   .home-main {
-    padding: 20px 15px !important;
+    padding: 15px 10px !important;
     width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .welcome-card, .stats-card {
+    width: 100%;
+    max-width: 100%;
+    margin-left: 0;
+    margin-right: 0;
+    padding: 20px 15px;
+  }
+
+  .time-text {
+    font-size: 1rem;
+    word-break: break-all;
+    line-height: 1.4;
   }
 }
 
