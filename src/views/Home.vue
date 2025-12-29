@@ -74,9 +74,17 @@
             <template #title>恋爱相册</template>
 <!--            新增点点滴滴-->
           </el-menu-item>
-          <el-menu-item index="5" class="menu-item" @click="goToDianDianDiDi"> <!-- 新增条目 -->
-            <el-icon><Document /></el-icon> <!-- 使用合适的图标 -->
+          <el-menu-item index="5" class="menu-item" @click="goToDianDianDiDi">
+            <el-icon><Document /></el-icon>
             <template #title>点点滴滴</template>
+          </el-menu-item>
+          <el-menu-item index="6" class="menu-item" @click="goToBucketList">
+            <el-icon><List /></el-icon>
+            <template #title>爱情清单</template>
+          </el-menu-item>
+          <el-menu-item index="7" class="menu-item" @click="goToContracts">
+            <el-icon><Stamp /></el-icon>
+            <template #title>专属契约</template>
           </el-menu-item>
         </el-menu>
       </el-aside>
@@ -192,7 +200,7 @@ import {
   ElMenu, ElMenuItem, ElDropdown, ElDropdownMenu,
   ElDropdownItem, ElAvatar, ElCard, ElButton
 } from 'element-plus'
-import {Menu, ArrowDown, House, Calendar, Message, Picture, Document} from '@element-plus/icons-vue'
+import {Menu, ArrowDown, House, Calendar, Message, Picture, Document, List, Stamp} from '@element-plus/icons-vue'
 
 defineComponent({
   name: 'Home',
@@ -237,6 +245,16 @@ const goToDianDianDiDi = () => {
   closeSidebarOnMobile()
   router.push({ name: 'DianDianDiDi' });
 };
+//跳转到爱情清单
+const goToBucketList = () => {
+  closeSidebarOnMobile()
+  router.push('/bucket-list')
+}
+//跳转到专属契约
+const goToContracts = () => {
+  closeSidebarOnMobile()
+  router.push('/contracts')
+}
 // 核心配置：你的恋爱开始时间（固定为2019-12-29 13:14:00）
 const userName = ref('亲爱的')
 const loveStartDate = ref('2019-12-29 13:14:00')

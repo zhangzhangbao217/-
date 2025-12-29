@@ -11,6 +11,8 @@ import SweetQuote from '../views/SweetQuote.vue'
 import LoveAlbum from '@/views/LoveAlbum.vue'
 //新总点点滴滴组件
 import DianDianDiDi from '../views/DianDianDiDi.vue';
+import BucketList from '../views/BucketList.vue';
+import Contracts from '../views/Contracts.vue';
 const routes = [
     { path: '/', redirect: '/login' }, // 根路径重定向到登录页
     { path: '/login', name: 'Login', component: Login },
@@ -42,6 +44,16 @@ const routes = [
         path: '/dian-dian-di-di', // 新增路由
         name: 'DianDianDiDi',
         component: DianDianDiDi,
+    },
+    {
+        path: '/bucket-list',
+        name: 'BucketList',
+        component: BucketList,
+    },
+    {
+        path: '/contracts',
+        name: 'Contracts',
+        component: Contracts,
     }
 ]
 
