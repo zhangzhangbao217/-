@@ -170,7 +170,7 @@ const memoryList = ref<Memory[]>([
   { id: 5, date: '2021-12-10', title: '吃', content: '这一次张张包给了好多好多好吃的。', mood: '🥰 甜蜜' },
   { id: 6, date: '2022-12-01', title: '......', content: '......', mood: '🥰 甜蜜' },
   { id: 7, date: '2024-05-01', title: '见家长', content: '第一次进他领居家，见了我的爸爸妈妈奶奶姐姐，我们一家人都很开心。', mood: '😄 开心' },
-  { id: 8, date: '2025-07-31', title: '一起', content: '......', mood: '🥰 甜蜜' }
+  { id: 8, date: '2025-07-31', title: '一起', content: '结束了长达五年的异地恋，开启了我们甜蜜的生活', mood: '🥰 甜蜜' }
 ])
 
 const dialogVisible = ref(false)
@@ -194,14 +194,13 @@ onMounted(() => {
   const saved = localStorage.getItem('love_memories')
   if (saved) {
     const localData = JSON.parse(saved)
-    // 合并初始数据和本地数据，去重
-    const combined = [...memoryList.value]
-    localData.forEach((item: Memory) => {
-      if (!combined.find(m => m.id === item.id)) {
-        combined.push(item)
-      }
+    // 过滤掉本地存储中已经存在于初始数据中的记忆（通过内容判断）
+    const localOnly = localData.filter((localItem: Memory) => {
+      return !memoryList.value.some(initItem => 
+        initItem.date === localItem.date && initItem.title === localItem.title
+      )
     })
-    memoryList.value = combined
+    memoryList.value = [...memoryList.value, ...localOnly]
   }
 })
 
