@@ -164,13 +164,39 @@ onMounted(() => {
 
 /* 登录卡片 */
 .login-card {
-  width: 500px;
+  width: 90%;
+  max-width: 500px;
   padding: 40px;
   background: #fff;
   border-radius: 16px;
   box-shadow: 0 8px 32px rgba(255, 105, 180, 0.2);
   /* 悬停动画 */
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@media (max-width: 768px) {
+  .login-card {
+    padding: 30px 20px;
+  }
+  
+  .login-logo h2 {
+    font-size: 24px;
+  }
+  
+  .login-logo p {
+    font-size: 14px;
+  }
+
+  :deep(.el-form-item__label) {
+    float: none;
+    display: block;
+    text-align: left;
+    padding: 0 0 8px;
+  }
+
+  :deep(.el-form-item__content) {
+    margin-left: 0 !important;
+  }
 }
 
 .login-card:hover {

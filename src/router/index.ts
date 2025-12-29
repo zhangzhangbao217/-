@@ -1,4 +1,4 @@
-import { createRouter, createWebHistory } from 'vue-router'
+import { createRouter, createWebHistory, type RouteLocationNormalized } from 'vue-router'
 import Login from '@/views/Login.vue'
 // 示例：创建首页组件（src/views/Home.vue）
 import Home from '@/views/Home.vue'
@@ -26,8 +26,8 @@ const routes = [
         name: 'AnniversaryManage',
         component: AnniversaryManage,
         // 接收待办纪念日数据作为路由参数
-        props: (route) => ({
-            anniversaries: JSON.parse(route.query.anniversaries || '[]')
+        props: (route: RouteLocationNormalized) => ({
+            anniversaries: JSON.parse((route.query.anniversaries as string) || '[]')
         })
     },
     // 新增：甜蜜语录库路由

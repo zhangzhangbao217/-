@@ -175,6 +175,38 @@ onUnmounted(() => {
   position: relative;
   z-index: 1;
 }
+
+@media (max-width: 768px) {
+  .page-title-bar h2 {
+    font-size: 1.4rem;
+  }
+  
+  .item-content {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  
+  .item-right {
+    width: 100%;
+    text-align: right;
+  }
+  
+  .item-name {
+    font-size: 1.1rem;
+  }
+  
+  .item-date {
+    font-size: 0.9rem;
+  }
+
+  .countdown {
+    font-size: 0.9rem;
+    padding-top: 10px;
+    border-top: 1px dashed #ffd1dc;
+  }
+}
+
 .back-btn {
   cursor: pointer;
   font-size: 18px;

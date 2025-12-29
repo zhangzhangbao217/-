@@ -553,10 +553,43 @@ onUnmounted(() => {
   background-color: rgba(255, 245, 247, 0.9);
   backdrop-filter: blur(8px);
   box-shadow: 2px 0 12px rgba(255, 192, 203, 0.1);
-  transition: width 0.3s;
+  transition: all 0.3s;
   position: relative;
-  z-index: 1;
+  z-index: 10;
 }
+
+@media (max-width: 768px) {
+  .home-aside {
+    position: absolute;
+    height: calc(100% - 60px);
+    top: 60px;
+    left: 0;
+    z-index: 100;
+  }
+  
+  /* 移动端展开时的遮罩效果（可选，通过父容器控制或简单位移） */
+  .home-aside:not(.el-aside--collapse) {
+    width: 200px !important;
+  }
+  
+  .home-aside.el-aside--collapse {
+    width: 0 !important;
+    overflow: hidden;
+  }
+
+  .app-title {
+    font-size: 14px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 150px;
+  }
+  
+  .username {
+    display: none;
+  }
+}
+
 .aside-menu {
   border-right: none;
   height: 100%;
@@ -678,6 +711,26 @@ onUnmounted(() => {
   display: flex;
   gap: 25px;
 }
+
+@media (max-width: 768px) {
+  .stats-card-group {
+    flex-direction: column;
+    gap: 15px;
+  }
+  
+  .welcome-card h2 {
+    font-size: 1.4rem;
+  }
+  
+  .time-text {
+    font-size: 1.1rem;
+  }
+
+  .stats-value {
+    font-size: 1.4rem;
+  }
+}
+
 .stats-card {
   flex: 1;
   text-align: center;
