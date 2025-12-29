@@ -31,7 +31,14 @@
       </div>
     </el-header>
 
-    <el-container>
+    <!-- 移动端遮罩层 -->
+    <div 
+      v-if="!isSidebarCollapse" 
+      class="mobile-mask" 
+      @click="isSidebarCollapse = true"
+    ></div>
+
+    <el-container class="main-wrapper">
       <!-- 侧边栏菜单 -->
       <el-aside :width="isSidebarCollapse ? '64px' : '200px'" class="home-aside">
         <el-menu
@@ -42,7 +49,7 @@
             active-text-color="#e63946"
             :collapse="isSidebarCollapse"
         >
-          <el-menu-item index="1" class="menu-item">
+          <el-menu-item index="1" class="menu-item" @click="closeSidebarOnMobile">
             <el-icon><House /></el-icon>
             <template #title>首页</template>
           </el-menu-item>
@@ -191,8 +198,17 @@ defineComponent({
 });
 
 const router = useRouter()
+
+// 移动端自动折叠侧边栏
+const closeSidebarOnMobile = () => {
+  if (window.innerWidth <= 768) {
+    isSidebarCollapse.value = true
+  }
+}
+
 // 跳转至纪念日管理页面
 const goToAnniversaryManage = () => {
+  closeSidebarOnMobile()
   router.push({
     name: 'AnniversaryManage',
     query: {
@@ -203,14 +219,17 @@ const goToAnniversaryManage = () => {
 }
 // 新增：跳转至甜蜜语录库
 const goToSweetQuote = () => {
+  closeSidebarOnMobile()
   router.push('/sweet-quote')
 }
 //跳转恋爱相册
 const goToLoveAlbum = () => {
+  closeSidebarOnMobile()
   router.push('/love-album')
 }
 //跳转到点点滴滴
 const goToDianDianDiDi = () => {
+  closeSidebarOnMobile()
   router.push({ name: 'DianDianDiDi' });
 };
 // 核心配置：你的恋爱开始时间（固定为2019-12-29 13:14:00）
@@ -226,7 +245,21 @@ const anniversaryTarget = ref({ name: '', date: '' }) // 当前倒计时的纪�
 const anniversaryCountdown = ref({ days: 0, hours: 0, minutes: 0, seconds: 0 })
 const futureAnniversaries = ref([]) // 所有未来纪念日列表
 // 侧边栏状态
-const isSidebarCollapse = ref(false)
+const isSidebarCollapse = ref(window.innerWidth <= 768)
+
+// 监听窗口大小变化
+onMounted(() => {
+  window.addEventListener('resize', () => {
+    if (window.innerWidth > 768) {
+      // 屏幕变宽时自动展开（可选）
+      // isSidebarCollapse.value = false
+    } else {
+      // 屏幕变窄时自动折叠
+      isSidebarCollapse.value = true
+    }
+  })
+})
+
 // 定时器标识
 let timeTimer = null
 
@@ -558,22 +591,47 @@ onUnmounted(() => {
   z-index: 10;
 }
 
+/* 移动端遮罩层 */
+.mobile-mask {
+  display: none;
+}
+
 @media (max-width: 768px) {
   .home-aside {
-    position: absolute;
-    height: calc(100% - 60px);
+    position: fixed; /* 改为 fixed 确保浮在最上层 */
+    height: calc(100vh - 60px);
     top: 60px;
     left: 0;
-    z-index: 100;
+    z-index: 1001; /* 提高层级 */
+    box-shadow: 4px 0 15px rgba(255, 192, 203, 0.3);
   }
   
-  /* 移动端展开时的遮罩效果（可选，通过父容器控制或简单位移） */
+  .mobile-mask {
+    display: block;
+    position: fixed;
+    top: 60px;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: rgba(0, 0, 0, 0.3);
+    z-index: 1000;
+    backdrop-filter: blur(2px);
+  }
+  
+  .main-wrapper {
+    width: 100%;
+    overflow-x: hidden;
+  }
+  
+  /* 移动端展开时的效果 */
   .home-aside:not(.el-aside--collapse) {
     width: 200px !important;
+    transform: translateX(0);
   }
   
   .home-aside.el-aside--collapse {
     width: 0 !important;
+    transform: translateX(-100%); /* 隐藏时向左移出屏幕 */
     overflow: hidden;
   }
 
@@ -587,6 +645,11 @@ onUnmounted(() => {
   
   .username {
     display: none;
+  }
+
+  .home-main {
+    padding: 20px 15px !important;
+    width: 100%;
   }
 }
 
