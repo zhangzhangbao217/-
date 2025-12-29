@@ -25,7 +25,6 @@
             <el-card 
               class="bucket-card" 
               :class="{ 'is-completed': item.completed }"
-              @click="toggleComplete(item)"
             >
               <div class="card-content">
                 <div class="item-index">#{{ index + 1 }}</div>
@@ -76,27 +75,10 @@ const completedCount = computed(() => bucketList.value.filter(i => i.completed).
 const completionPercentage = computed(() => Math.round((completedCount.value / bucketList.value.length) * 100))
 
 onMounted(() => {
-  const saved = localStorage.getItem('love_bucket_list')
-  if (saved) {
-    bucketList.value = JSON.parse(saved)
-  }
+  // 移除本地存储读取，改为完全由代码控制状态
 })
 
-const toggleComplete = (item: BucketItem) => {
-  // 只有管理员（你）可以修改状态
-  const isAdmin = localStorage.getItem('isAdmin') === 'true'
-  
-  if (!isAdmin) {
-    ElMessage.warning('只有主人可以标记完成哦，其他人只能看~')
-    return
-  }
-
-  item.completed = !item.completed
-  localStorage.setItem('love_bucket_list', JSON.stringify(bucketList.value))
-  if (item.completed) {
-    ElMessage.success('又完成了一个心愿，真棒！✨')
-  }
-}
+// 移除 toggleComplete 函数，使其无法被修改
 </script>
 
 <style scoped>
@@ -130,7 +112,7 @@ const toggleComplete = (item: BucketItem) => {
 .progress-text { display: block; margin-top: 10px; color: #666; font-size: 14px; }
 
 .bucket-card {
-  margin-bottom: 20px; border-radius: 15px; cursor: pointer;
+  margin-bottom: 20px; border-radius: 15px;
   transition: all 0.3s; border: 1px solid rgba(255, 182, 193, 0.3);
 }
 .bucket-card:hover { transform: translateY(-5px); box-shadow: 0 8px 20px rgba(255, 182, 193, 0.3); }
