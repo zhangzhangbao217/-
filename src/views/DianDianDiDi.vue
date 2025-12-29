@@ -57,7 +57,7 @@
             <el-input
                 v-model="newItem.content"
                 type="textarea"
-                rows="3"
+                :rows="3"
                 placeholder="发生了什么有趣的事呢？"
             />
           </el-form-item>
