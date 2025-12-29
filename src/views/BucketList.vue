@@ -25,7 +25,7 @@
             <el-card 
               class="bucket-card" 
               :class="{ 'is-completed': item.completed }"
-              @click="toggleComplete(index)"
+              @click="toggleComplete(item)"
             >
               <div class="card-content">
                 <div class="item-index">#{{ index + 1 }}</div>
@@ -82,14 +82,11 @@ onMounted(() => {
   }
 })
 
-const toggleComplete = (index: number) => {
-  const item = bucketList.value[index]
-  if (item) {
-    item.completed = !item.completed
-    localStorage.setItem('love_bucket_list', JSON.stringify(bucketList.value))
-    if (item.completed) {
-      ElMessage.success('又完成了一个心愿，真棒！✨')
-    }
+const toggleComplete = (item: BucketItem) => {
+  item.completed = !item.completed
+  localStorage.setItem('love_bucket_list', JSON.stringify(bucketList.value))
+  if (item.completed) {
+    ElMessage.success('又完成了一个心愿，真棒！✨')
   }
 }
 </script>
