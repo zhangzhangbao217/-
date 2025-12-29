@@ -83,10 +83,13 @@ onMounted(() => {
 })
 
 const toggleComplete = (index: number) => {
-  bucketList.value[index].completed = !bucketList.value[index].completed
-  localStorage.setItem('love_bucket_list', JSON.stringify(bucketList.value))
-  if (bucketList.value[index].completed) {
-    ElMessage.success('又完成了一个心愿，真棒！✨')
+  const item = bucketList.value[index]
+  if (item) {
+    item.completed = !item.completed
+    localStorage.setItem('love_bucket_list', JSON.stringify(bucketList.value))
+    if (item.completed) {
+      ElMessage.success('又完成了一个心愿，真棒！✨')
+    }
   }
 }
 </script>
