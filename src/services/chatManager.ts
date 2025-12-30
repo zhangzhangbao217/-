@@ -16,22 +16,24 @@ const CONVERSATION_ID = 'sweet_love_chat_v1';
 const NOTIFY_SOUND_URL = 'https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3';
 
 // 外部推送配置 (PushDeer)
-// 用户 1 的推送密钥（发给用户 1 的时候使用）
-const DEFAULT_PUSH_KEY_USER1 = 'PDU38226Ti4RnRcz0DSd9uHKLq1QGjsOJvm3uJnsA';
-// 用户 2 的推送密钥（目前先共用同一个，如果用户提供了第二个再修改）
-const DEFAULT_PUSH_KEY_USER2 = 'PDU38226Ti4RnRcz0DSd9uHKLq1QGjsOJvm3uJnsA';
+// 用户 1 (张张包) 的推送密钥 - 用于接收对方发给张张包的消息
+const DEFAULT_PUSH_KEY_USER1 = ''; 
+// 用户 2 (小黄包) 的推送密钥 - 用于接收对方发给小黄包的消息
+const DEFAULT_PUSH_KEY_USER2 = ''; 
 
 const getTargetPushKey = () => {
-  // 优先从本地存储读取（方便用户自定义密钥）
-  const customKey1 = localStorage.getItem('push_key_user1');
-  const customKey2 = localStorage.getItem('push_key_user2');
+  // 优先从本地存储读取
+  const customKey1 = localStorage.getItem('push_key_user1'); // 张张包的 Key
+  const customKey2 = localStorage.getItem('push_key_user2'); // 小黄包的 Key
   
   const key1 = customKey1 || DEFAULT_PUSH_KEY_USER1;
   const key2 = customKey2 || DEFAULT_PUSH_KEY_USER2;
 
-  // 如果当前是用户 1，那么推送给用户 2
-  // 如果当前是用户 2，那么推送给用户 1
-  return currentUser.value.id === user1.id ? key2 : key1;
+  // 如果当前登录的是 张张包 (user1)，消息发给 小黄包 (user2)，所以用 key2
+  // 如果当前登录的是 小黄包 (user2)，消息发给 张张包 (user1)，所以用 key1
+  const targetKey = currentUser.value.id === user1.id ? key2 : key1;
+  console.log(`[Push] 当前发送者: ${currentUser.value.name}, 目标接收者 Key: ${targetKey}`);
+  return targetKey;
 };
 
 const getMyPushKey = () => {
@@ -41,6 +43,7 @@ const getMyPushKey = () => {
   const key1 = customKey1 || DEFAULT_PUSH_KEY_USER1;
   const key2 = customKey2 || DEFAULT_PUSH_KEY_USER2;
 
+  // 我自己的 Key
   return currentUser.value.id === user1.id ? key1 : key2;
 };
 

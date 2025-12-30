@@ -25,6 +25,11 @@
 
     <!-- 消息列表 -->
     <div class="message-list" ref="messageListRef" v-loading="isInitialLoading">
+      <div class="identity-notice">
+        <el-tag size="small" effect="plain" type="danger">
+          当前身份: {{ currentUser.name }}
+        </el-tag>
+      </div>
       <div v-for="(msg, index) in messages" :key="index" :class="['message-item', msg.type]">
         <el-avatar :size="40" :src="msg.avatar" class="avatar" />
         <div class="message-content">
@@ -490,6 +495,12 @@ const goBack = () => {
   display: flex;
   flex-direction: column;
   gap: 20px;
+}
+
+.identity-notice {
+  text-align: center;
+  margin-bottom: 10px;
+  opacity: 0.8;
 }
 
 .message-item {
