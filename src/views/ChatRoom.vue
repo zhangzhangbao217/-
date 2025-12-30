@@ -122,12 +122,16 @@ export default {
 </script>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, nextTick, computed } from 'vue';
+import { onMounted, onUnmounted, nextTick, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { ElMessage, ElMessageBox, ElNotification } from 'element-plus';
 import { ArrowLeft, MoreFilled, Picture, Star, Microphone, VideoPause, Service, ChatDotRound } from '@element-plus/icons-vue';
-import { TextMessage, ImageMessage, AudioMessage } from 'leancloud-realtime';
+import { TextMessage } from 'leancloud-realtime';
+import * as RealtimeModule from 'leancloud-realtime';
+// @ts-ignore
 import AV from 'leancloud-storage';
+
+const { ImageMessage, AudioMessage } = RealtimeModule as any;
 
 const router = useRouter();
 const messageListRef = ref<HTMLElement | null>(null);
@@ -159,7 +163,6 @@ const getRealtime = () => {
       appId: APP_ID,
       appKey: APP_KEY,
       server: SERVER_URL,
-      pushOfflineMessages: true,
       noBinary: true,
     });
   }
