@@ -253,10 +253,10 @@ const notifyNewMessage = (msg: any, isChatPage: boolean) => {
     // 3. 额外保险：如果页面在后台，且没能弹出系统通知（比如移动端浏览器限制），则尝试发一个外部推送给自己
      const myKey = getMyPushKey();
      if (myKey) {
-      const text = msg.contentType === 'text' ? msg.content : `[${msg.contentType === 'image' ? '图片' : '语音'}]`;
-      const url = `https://api2.pushdeer.com/message/push?pushkey=${myKey}&text=${encodeURIComponent('💕 收到新消息')}&desp=${encodeURIComponent(text)}&type=markdown`;
-      fetch(url, { method: 'GET', keepalive: true, mode: 'no-cors' }).catch(() => {});
-    }
+       const text = msg.contentType === 'text' ? msg.content : `[${msg.contentType === 'image' ? '图片' : '语音'}]`;
+       const url = `https://api2.pushdeer.com/message/push?pushkey=${myKey}&text=${encodeURIComponent('💕 收到新消息')}&desp=${encodeURIComponent(text)}&type=text`;
+       fetch(url, { method: 'GET', keepalive: true, mode: 'no-cors' }).catch(() => {});
+     }
   }
 
   // 4. 应用内顶部弹窗通知 (如果不在聊天页，或者页面在前台但不在聊天页)
