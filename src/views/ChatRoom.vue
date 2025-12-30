@@ -13,8 +13,6 @@
           <el-button :icon="MoreFilled" circle class="header-btn" />
           <template #dropdown>
             <el-dropdown-menu>
-              <el-dropdown-item command="settings">通知设置 (PushDeer)</el-dropdown-item>
-              <el-dropdown-item command="test_push">测试推送 (检查手机)</el-dropdown-item>
               <el-dropdown-item command="clear">清空聊天记录</el-dropdown-item>
               <el-dropdown-item command="export">导出聊天记录</el-dropdown-item>
             </el-dropdown-menu>
@@ -88,13 +86,6 @@
         />
       </div>
       <div class="input-wrapper">
-        <el-tooltip
-          v-if="!partnerPushKey"
-          content="对方未配置 PushKey，消息可能无法送达手机通知"
-          placement="top"
-        >
-          <el-icon class="push-warning" @click="showSettings = true"><Warning /></el-icon>
-        </el-tooltip>
         <el-input
           v-model="inputMsg"
           type="textarea"
@@ -111,10 +102,6 @@
 
     <!-- 模拟切换用户按钮 (仅开发测试用) -->
     <div class="dev-tools">
-      <div class="push-status-indicator" :class="{ active: partnerPushKey }" @click="showSettings = true">
-        <div class="status-dot" :class="{ success: lastPushStatus?.success, fail: lastPushStatus && !lastPushStatus.success }"></div>
-        <span class="status-text">{{ partnerPushKey ? '推送已就绪' : '未配置推送' }}</span>
-      </div>
       <el-tag effect="dark" type="info" @click="handleToggleUser" style="cursor: pointer">
         身份: {{ currentUser.name }}
       </el-tag>
@@ -143,34 +130,8 @@
             <span class="name">{{ user2.name }}</span>
           </div>
         </div>
-        <p class="warning-text">⚠️ 选错身份将无法正常接收通知！</p>
+        <p class="warning-text">⚠️ 选错身份将无法正常同步消息！</p>
       </div>
-    </el-dialog>
-
-    <!-- 通知设置弹窗 -->
-    <el-dialog v-model="showSettings" title="🔔 通知设置" width="90%" class="settings-dialog">
-      <el-form label-position="top">
-        <el-form-item label="你的 PushDeer Key">
-          <el-input v-model="myPushKey" placeholder="请输入你的 PushKey" />
-          <div class="tip-text">用于接收对方发给你的消息通知</div>
-        </el-form-item>
-        <el-form-item label="对方的 PushDeer Key">
-          <el-input v-model="partnerPushKey" placeholder="请输入对方的 PushKey" />
-          <div class="tip-text">用于当你给对方发消息时，触发对方的手机通知</div>
-        </el-form-item>
-        
-        <div class="permission-tips">
-          <p><strong>💡 小米/移动端用户必读：</strong></p>
-          <p>1. 请确保手机已安装 PushDeer App。</p>
-          <p>2. <strong>重要：</strong>在手机设置 -> 应用管理 -> PushDeer -> 开启<strong>“自启动”</strong>。</p>
-          <p>3. 在省电策略中设置为<strong>“无限制”</strong>。</p>
-          <p>4. 确保通知权限中的“悬浮通知”和“锁屏通知”已开启。</p>
-        </div>
-      </el-form>
-      <template #footer>
-        <el-button @click="showSettings = false">取消</el-button>
-        <el-button type="primary" @click="saveSettings">保存配置</el-button>
-      </template>
     </el-dialog>
   </div>
 </template>
@@ -186,8 +147,7 @@ import {
   Star, 
   Microphone, 
   VideoPause, 
-  Service,
-  Warning
+  Service
 } from '@element-plus/icons-vue';
 import { TextMessage } from 'leancloud-realtime';
 import * as RealtimeModule from 'leancloud-realtime';
@@ -202,8 +162,6 @@ import {
   initChat,
   parseMessage,
   saveMessages,
-  sendExternalPush,
-  lastPushStatus,
   user1,
   user2
 } from '../services/chatManager';
@@ -218,10 +176,7 @@ const isPartnerOnline = globalIsOnline;
 const isDev = ref(true); 
 const isInitialLoading = ref(false);
 const isRecording = ref(false);
-const showSettings = ref(false);
 const showIdentityDialog = ref(false);
-const myPushKey = ref('');
-const partnerPushKey = ref('');
 
 let mediaRecorder: MediaRecorder | null = null;
 let audioChunks: Blob[] = [];
@@ -247,17 +202,9 @@ onMounted(async () => {
   // 确保连接已初始化
   await initChat();
   
-  loadPushKeys();
-
   scrollToBottom();
   isInitialLoading.value = false;
 });
-
-const loadPushKeys = () => {
-  const isUser1 = currentUser.value.id === user1.id;
-  myPushKey.value = localStorage.getItem(isUser1 ? 'push_key_user1' : 'push_key_user2') || '';
-  partnerPushKey.value = localStorage.getItem(isUser1 ? 'push_key_user2' : 'push_key_user1') || '';
-};
 
 const selectIdentity = async (user: any) => {
   currentUser.value = user;
@@ -269,22 +216,8 @@ const selectIdentity = async (user: any) => {
   messages.value = [];
   
   await initChat();
-  loadPushKeys();
   
   isInitialLoading.value = false;
-};
-
-const saveSettings = () => {
-  const isUser1 = currentUser.value.id === user1.id;
-  if (isUser1) {
-    localStorage.setItem('push_key_user1', myPushKey.value);
-    localStorage.setItem('push_key_user2', partnerPushKey.value);
-  } else {
-    localStorage.setItem('push_key_user2', myPushKey.value);
-    localStorage.setItem('push_key_user1', partnerPushKey.value);
-  }
-  showSettings.value = false;
-  ElMessage.success('通知设置已保存');
 };
 
 // 监听消息变化，自动滚动
@@ -331,8 +264,6 @@ const sendMessage = async () => {
       saveMessages();
     }
     scrollToBottom();
-    // 发送外部推送
-    sendExternalPush(text);
   } catch (error: any) {
     inputMsg.value = text;
     ElMessage.error('消息发送失败: ' + (error.message || '未知错误'));
@@ -356,8 +287,6 @@ const handleImageUpload = async (uploadFile: any) => {
     messages.value.push(newMsg);
     saveMessages();
     scrollToBottom();
-    // 发送外部推送
-    sendExternalPush(`[图片消息]`);
   } catch (error) {
     ElMessage.error('图片发送失败');
   }
@@ -436,8 +365,6 @@ const sendVoiceMessage = async (blob: Blob, duration: number) => {
     messages.value.push(newMsg);
     saveMessages();
     scrollToBottom();
-    // 发送外部推送
-    sendExternalPush(`[语音消息]`);
   } catch (error) {
     ElMessage.error('语音发送失败');
   }
@@ -466,22 +393,7 @@ const handleToggleUser = async () => {
 };
 
 const handleMoreCommand = async (command: string) => {
-  if (command === 'settings') {
-    showSettings.value = true;
-  } else if (command === 'test_push') {
-    if (!partnerPushKey.value) {
-      ElMessage.warning('请先在“通知设置”中填入对方的 PushKey');
-      showSettings.value = true;
-      return;
-    }
-    ElMessage.info('正在发送测试推送...');
-    const success = await sendExternalPush('这是一条测试推送，如果你收到这条消息，说明配置成功啦！❤️');
-    if (success) {
-      ElMessage.success('测试推送指令已发出，请检查对方手机通知');
-    } else {
-      ElMessage.error('推送发送失败，请检查网络或 Key 是否正确');
-    }
-  } else if (command === 'clear') {
+  if (command === 'clear') {
     ElMessageBox.confirm('确定要清空所有聊天记录吗？', '提示', {
       type: 'warning'
     }).then(() => {
@@ -691,18 +603,6 @@ const goBack = () => {
   background: #d62839;
 }
 
-.push-warning {
-  color: #e6a23c;
-  font-size: 20px;
-  cursor: pointer;
-  margin-right: 5px;
-  transition: transform 0.2s;
-}
-
-.push-warning:hover {
-  transform: scale(1.2);
-}
-
 .emoji-picker {
   display: grid;
   grid-template-columns: repeat(8, 1fr);
@@ -730,40 +630,6 @@ const goBack = () => {
   flex-direction: column;
   align-items: flex-end;
   gap: 8px;
-}
-
-.push-status-indicator {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  background: rgba(255, 255, 255, 0.9);
-  padding: 4px 10px;
-  border-radius: 12px;
-  font-size: 11px;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.05);
-  cursor: pointer;
-  border: 1px solid transparent;
-}
-
-.push-status-indicator.active {
-  border-color: rgba(76, 175, 80, 0.2);
-}
-
-.status-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: #ccc;
-}
-
-.status-dot.success {
-  background: #4caf50;
-  box-shadow: 0 0 4px #4caf50;
-}
-
-.status-dot.fail {
-  background: #f44336;
-  box-shadow: 0 0 4px #f44336;
 }
 
 .identity-selection {

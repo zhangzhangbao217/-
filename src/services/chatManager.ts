@@ -15,38 +15,6 @@ const SERVER_URL = 'https://il767g7c.lc-cn-n1-shared.com';
 const CONVERSATION_ID = 'sweet_love_chat_v1';
 const NOTIFY_SOUND_URL = 'https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3';
 
-// 外部推送配置 (PushDeer)
-// 用户 1 (张张包) 的推送密钥 - 用于接收对方发给张张包的消息
-const DEFAULT_PUSH_KEY_USER1 = ''; 
-// 用户 2 (小黄包) 的推送密钥 - 用于接收对方发给小黄包的消息
-const DEFAULT_PUSH_KEY_USER2 = ''; 
-
-const getTargetPushKey = () => {
-  // 优先从本地存储读取
-  const customKey1 = localStorage.getItem('push_key_user1'); // 张张包的 Key
-  const customKey2 = localStorage.getItem('push_key_user2'); // 小黄包的 Key
-  
-  const key1 = customKey1 || DEFAULT_PUSH_KEY_USER1;
-  const key2 = customKey2 || DEFAULT_PUSH_KEY_USER2;
-
-  // 如果当前登录的是 张张包 (user1)，消息发给 小黄包 (user2)，所以用 key2
-  // 如果当前登录的是 小黄包 (user2)，消息发给 张张包 (user1)，所以用 key1
-  const targetKey = currentUser.value.id === user1.id ? key2 : key1;
-  console.log(`[Push] 当前发送者: ${currentUser.value.name}, 目标接收者 Key: ${targetKey}`);
-  return targetKey;
-};
-
-const getMyPushKey = () => {
-  const customKey1 = localStorage.getItem('push_key_user1');
-  const customKey2 = localStorage.getItem('push_key_user2');
-  
-  const key1 = customKey1 || DEFAULT_PUSH_KEY_USER1;
-  const key2 = customKey2 || DEFAULT_PUSH_KEY_USER2;
-
-  // 我自己的 Key
-  return currentUser.value.id === user1.id ? key1 : key2;
-};
-
 // 用户定义
 export const user1 = {
   id: 'Hgtzsx',
@@ -66,7 +34,6 @@ export const globalConversation = ref<any>(null);
 export const globalIsOnline = ref(false);
 export const isConnecting = ref(false);
 export const currentUser = ref(user1);
-export const lastPushStatus = ref<{success: boolean, time: number, target: string} | null>(null);
 
 // 初始化时从本地存储加载历史记录
 const getInitialMessages = () => {
@@ -253,17 +220,9 @@ const notifyNewMessage = (msg: any, isChatPage: boolean) => {
         icon: msg.avatar
       });
     }
-    
-    // 3. 额外保险：如果页面在后台，且没能弹出系统通知（比如移动端浏览器限制），则尝试发一个外部推送给自己
-     const myKey = getMyPushKey();
-     if (myKey) {
-       const text = msg.contentType === 'text' ? msg.content : `[${msg.contentType === 'image' ? '图片' : '语音'}]`;
-       const url = `https://api2.pushdeer.com/message/push?pushkey=${myKey}&text=${encodeURIComponent('💕 收到新消息')}&desp=${encodeURIComponent(text)}&type=text`;
-       fetch(url, { method: 'GET', keepalive: true, mode: 'no-cors' }).catch(() => {});
-     }
   }
 
-  // 4. 应用内顶部弹窗通知 (如果不在聊天页，或者页面在前台但不在聊天页)
+  // 3. 应用内顶部弹窗通知 (如果不在聊天页，或者页面在前台但不在聊天页)
   if (!isChatPage) {
     ElNotification({
       title: `新消息: ${msg.sender}`,
@@ -272,37 +231,5 @@ const notifyNewMessage = (msg: any, isChatPage: boolean) => {
       position: 'top-right',
       duration: 3000
     });
-  }
-};
-
-// 发送外部推送通知
-export const sendExternalPush = async (text: string) => {
-  const key = getTargetPushKey();
-  if (!key) {
-    console.warn('[Push] 未配置接收者 Key，跳过推送');
-    lastPushStatus.value = { success: false, time: Date.now(), target: '未配置Key' };
-    return false;
-  }
-
-  const targetName = currentUser.value.id === user1.id ? user2.name : user1.name;
-  console.log(`[Push] 尝试向 ${targetName} (${key.substring(0, 8)}...) 发送推送`);
-
-  try {
-    const url = `https://api2.pushdeer.com/message/push?pushkey=${key}&text=${encodeURIComponent('💕 恋爱窝新消息')}&desp=${encodeURIComponent(text)}&type=text`;
-    
-    // 使用 fetch 并开启 keepalive
-    const response = await fetch(url, {
-      method: 'GET',
-      keepalive: true,
-      mode: 'no-cors'
-    });
-    
-    console.log('[Push] 外部推送请求已发出');
-    lastPushStatus.value = { success: true, time: Date.now(), target: targetName };
-    return true;
-  } catch (error) {
-    console.error('[Push] 外部推送发送失败:', error);
-    lastPushStatus.value = { success: false, time: Date.now(), target: targetName };
-    return false;
   }
 };
