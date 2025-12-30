@@ -93,14 +93,17 @@ const createPeerConnection = () => {
 
   // 监听远程流
   peerConnection.ontrack = (event) => {
+    console.log('收到远程轨道:', event.track.kind);
     if (event.streams && event.streams[0]) {
       remoteStream.value = event.streams[0];
+      console.log('设置远程流成功');
     }
   };
 
   // 监听 ICE Candidate
   peerConnection.onicecandidate = (event) => {
     if (event.candidate) {
+      console.log('生成 ICE Candidate');
       sendSignalingMessage({
         type: 'candidate',
         candidate: event.candidate
@@ -248,6 +251,19 @@ export const handleSignaling = async (data: any) => {
     case 'answer':
       if (peerConnection && callStatus.value === 'calling') {
         await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
+        console.log('成功设置 RemoteDescription (Answer)');
+        
+        // 处理暂存的 candidates
+        console.log('处理暂存的 Candidates:', pendingCandidates.length);
+        for (const cand of pendingCandidates) {
+          try {
+            await peerConnection.addIceCandidate(new RTCIceCandidate(cand));
+          } catch (e) {
+            console.error('Error adding pending ice candidate', e);
+          }
+        }
+        pendingCandidates = [];
+        
         callStatus.value = 'connected';
       }
       break;
@@ -256,10 +272,12 @@ export const handleSignaling = async (data: any) => {
       if (peerConnection && peerConnection.remoteDescription) {
         try {
           await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+          console.log('成功添加 ICE Candidate');
         } catch (e) {
           console.error('Error adding ice candidate', e);
         }
       } else {
+        console.log('暂存 ICE Candidate (等待 remoteDescription)');
         pendingCandidates.push(candidate);
       }
       break;

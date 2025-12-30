@@ -162,6 +162,9 @@
 
         <!-- 通话中 -->
         <div v-if="callStatus === 'connected'" class="call-connected" :class="{ 'is-video': callType === 'video' }">
+          <!-- 隐藏的远程音频，用于语音通话或视频通话音频 -->
+          <audio ref="remoteAudioRef" autoplay playsinline style="display: none;"></audio>
+
           <div v-if="callType === 'video'" class="video-container">
             <video ref="remoteVideoRef" autoplay playsinline class="remote-video"></video>
             <video ref="localVideoRef" autoplay playsinline muted class="local-video"></video>
@@ -239,6 +242,7 @@ const router = useRouter();
 const messageListRef = ref<HTMLElement | null>(null);
 const localVideoRef = ref<HTMLVideoElement | null>(null);
 const remoteVideoRef = ref<HTMLVideoElement | null>(null);
+const remoteAudioRef = ref<HTMLAudioElement | null>(null);
 
 // 设置 WebRTC 信令发送器
 setSignalingSender(async (data) => {
@@ -260,18 +264,27 @@ let callTimer: any = null;
 
 const partnerInfo = computed(() => currentUser.value.id === user1.id ? user2 : user1);
 
-// 监听流变化并绑定到 video 标签
-watch(localStream, (stream) => {
-  if (stream && localVideoRef.value) {
-    localVideoRef.value.srcObject = stream;
+// 监听流变化并绑定到 media 标签
+watch([localStream, localVideoRef], ([stream, videoEl]) => {
+  if (stream && videoEl) {
+    videoEl.srcObject = stream;
+    videoEl.play().catch(err => console.error('Local video play error:', err));
   }
-});
+}, { immediate: true });
 
-watch(remoteStream, (stream) => {
-  if (stream && remoteVideoRef.value) {
-    remoteVideoRef.value.srcObject = stream;
+watch([remoteStream, remoteVideoRef], ([stream, videoEl]) => {
+  if (stream && videoEl) {
+    videoEl.srcObject = stream;
+    videoEl.play().catch(err => console.error('Remote video play error:', err));
   }
-});
+}, { immediate: true });
+
+watch([remoteStream, remoteAudioRef], ([stream, audioEl]) => {
+  if (stream && audioEl) {
+    audioEl.srcObject = stream;
+    audioEl.play().catch(err => console.error('Remote audio play error:', err));
+  }
+}, { immediate: true });
 
 // 监听通话状态
 watch(callStatus, (status) => {
