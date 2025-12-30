@@ -13,6 +13,7 @@
           <el-button :icon="MoreFilled" circle class="header-btn" />
           <template #dropdown>
             <el-dropdown-menu>
+              <el-dropdown-item command="settings">通知设置 (PushDeer)</el-dropdown-item>
               <el-dropdown-item command="test_push">测试推送 (检查手机)</el-dropdown-item>
               <el-dropdown-item command="clear">清空聊天记录</el-dropdown-item>
               <el-dropdown-item command="export">导出聊天记录</el-dropdown-item>
@@ -102,6 +103,32 @@
         当前身份: {{ currentUser.name }} (点击切换)
       </el-tag>
     </div>
+
+    <!-- 通知设置弹窗 -->
+    <el-dialog v-model="showSettings" title="🔔 通知设置" width="90%" class="settings-dialog">
+      <el-form label-position="top">
+        <el-form-item label="你的 PushDeer Key">
+          <el-input v-model="myPushKey" placeholder="请输入你的 PushKey" />
+          <div class="tip-text">用于接收对方发给你的消息通知</div>
+        </el-form-item>
+        <el-form-item label="对方的 PushDeer Key">
+          <el-input v-model="partnerPushKey" placeholder="请输入对方的 PushKey" />
+          <div class="tip-text">用于当你给对方发消息时，触发对方的手机通知</div>
+        </el-form-item>
+        
+        <div class="permission-tips">
+          <p><strong>💡 小米/移动端用户必读：</strong></p>
+          <p>1. 请确保手机已安装 PushDeer App。</p>
+          <p>2. <strong>重要：</strong>在手机设置 -> 应用管理 -> PushDeer -> 开启<strong>“自启动”</strong>。</p>
+          <p>3. 在省电策略中设置为<strong>“无限制”</strong>。</p>
+          <p>4. 确保通知权限中的“悬浮通知”和“锁屏通知”已开启。</p>
+        </div>
+      </el-form>
+      <template #footer>
+        <el-button @click="showSettings = false">取消</el-button>
+        <el-button type="primary" @click="saveSettings">保存配置</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -138,6 +165,10 @@ const isPartnerOnline = globalIsOnline;
 const isDev = ref(true); 
 const isInitialLoading = ref(false);
 const isRecording = ref(false);
+const showSettings = ref(false);
+const myPushKey = ref('');
+const partnerPushKey = ref('');
+
 let mediaRecorder: MediaRecorder | null = null;
 let audioChunks: Blob[] = [];
 let recordingTimer: any = null;
@@ -151,13 +182,32 @@ const emojis = [
   '🌟', '🔥', '💧', '🍀', '🎵', '📸', '💌', '🏠', '🌍', '🚀'
 ];
 
+// 初始化加载设置
 onMounted(async () => {
   // 确保连接已初始化
   await initChat();
   
+  // 加载推送 Key
+  const isUser1 = currentUser.value.id === user1.id;
+  myPushKey.value = localStorage.getItem(isUser1 ? 'push_key_user1' : 'push_key_user2') || '';
+  partnerPushKey.value = localStorage.getItem(isUser1 ? 'push_key_user2' : 'push_key_user1') || '';
+
   scrollToBottom();
   isInitialLoading.value = false;
 });
+
+const saveSettings = () => {
+  const isUser1 = currentUser.value.id === user1.id;
+  if (isUser1) {
+    localStorage.setItem('push_key_user1', myPushKey.value);
+    localStorage.setItem('push_key_user2', partnerPushKey.value);
+  } else {
+    localStorage.setItem('push_key_user2', myPushKey.value);
+    localStorage.setItem('push_key_user1', partnerPushKey.value);
+  }
+  showSettings.value = false;
+  ElMessage.success('通知设置已保存');
+};
 
 // 监听消息变化，自动滚动
 watch(messages, () => {
@@ -338,7 +388,9 @@ const handleToggleUser = async () => {
 };
 
 const handleMoreCommand = (command: string) => {
-  if (command === 'test_push') {
+  if (command === 'settings') {
+    showSettings.value = true;
+  } else if (command === 'test_push') {
     sendExternalPush('这是一条测试推送，如果你收到这条消息，说明配置成功啦！❤️');
     ElMessage.success('测试推送已发出，请检查手机通知 (PushDeer)');
   } else if (command === 'clear') {
@@ -584,5 +636,29 @@ const goBack = () => {
   background: #e63946 !important;
   color: white !important;
   border: none !important;
+}
+.tip-text {
+  font-size: 12px;
+  color: #999;
+  line-height: 1.4;
+  margin-top: 4px;
+}
+
+.permission-tips {
+  margin-top: 20px;
+  padding: 15px;
+  background: #fff5f7;
+  border-radius: 8px;
+  font-size: 13px;
+  color: #e63946;
+  line-height: 1.6;
+}
+
+.permission-tips p {
+  margin-bottom: 5px;
+}
+
+.settings-dialog :deep(.el-dialog__body) {
+  padding-top: 10px;
 }
 </style>
