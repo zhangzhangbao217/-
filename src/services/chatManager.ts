@@ -114,6 +114,15 @@ export const initChat = async (silent = false) => {
 
     globalIsOnline.value = true;
     setupGlobalListeners();
+    // 监听页面可见性变化，回到前台时立即同步
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') {
+        console.log('页面回到前台，检查连接...');
+        if (!globalIsOnline.value) {
+          initChat(true);
+        }
+      }
+    });
     console.log('全局聊天连接成功');
   } catch (error) {
     console.error('全局聊天初始化失败:', error);

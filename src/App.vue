@@ -169,6 +169,17 @@ const triggerEasterEggBurst = () => {
   }
 }
 
+// 后台保活逻辑：播放一段静音音频
+const enableBackgroundMode = () => {
+  const audio = new Audio();
+  // 这是一个 1秒的静音 base64 音频
+  audio.src = 'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQQAAAAAAA==';
+  audio.loop = true;
+  audio.play().catch(() => {
+    console.log('后台保活音频播放失败，可能需要用户交互');
+  });
+}
+
 onMounted(() => {
   // 初始化全局聊天连接
   initChat(true);
@@ -183,6 +194,9 @@ onMounted(() => {
   window.addEventListener('mousedown', handleMouseDown)
   window.addEventListener('mouseup', handleMouseUp)
   window.addEventListener('easter-egg-triggered', triggerEasterEggBurst)
+  
+  // 只要用户有点击行为，就尝试开启后台保活
+  window.addEventListener('click', enableBackgroundMode, { once: true });
 })
 
 onUnmounted(() => {
