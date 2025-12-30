@@ -88,6 +88,13 @@
         />
       </div>
       <div class="input-wrapper">
+        <el-tooltip
+          v-if="!partnerPushKey"
+          content="对方未配置 PushKey，消息可能无法送达手机通知"
+          placement="top"
+        >
+          <el-icon class="push-warning" @click="showSettings = true"><Warning /></el-icon>
+        </el-tooltip>
         <el-input
           v-model="inputMsg"
           type="textarea"
@@ -141,7 +148,16 @@
 import { ref, onMounted, onUnmounted, nextTick, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import { ArrowLeft, MoreFilled, Picture, Star, Microphone, VideoPause, Service } from '@element-plus/icons-vue';
+import { 
+  ArrowLeft, 
+  MoreFilled, 
+  Picture, 
+  Star, 
+  Microphone, 
+  VideoPause, 
+  Service,
+  Warning
+} from '@element-plus/icons-vue';
 import { TextMessage } from 'leancloud-realtime';
 import * as RealtimeModule from 'leancloud-realtime';
 // @ts-ignore
@@ -392,12 +408,22 @@ const handleToggleUser = async () => {
   ElMessage.success(`已成功切换为: ${currentUser.value.name}`);
 };
 
-const handleMoreCommand = (command: string) => {
+const handleMoreCommand = async (command: string) => {
   if (command === 'settings') {
     showSettings.value = true;
   } else if (command === 'test_push') {
-    sendExternalPush('这是一条测试推送，如果你收到这条消息，说明配置成功啦！❤️');
-    ElMessage.success('测试推送已发出，请检查手机通知 (PushDeer)');
+    if (!partnerPushKey.value) {
+      ElMessage.warning('请先在“通知设置”中填入对方的 PushKey');
+      showSettings.value = true;
+      return;
+    }
+    ElMessage.info('正在发送测试推送...');
+    const success = await sendExternalPush('这是一条测试推送，如果你收到这条消息，说明配置成功啦！❤️');
+    if (success) {
+      ElMessage.success('测试推送指令已发出，请检查对方手机通知');
+    } else {
+      ElMessage.error('推送发送失败，请检查网络或 Key 是否正确');
+    }
   } else if (command === 'clear') {
     ElMessageBox.confirm('确定要清空所有聊天记录吗？', '提示', {
       type: 'warning'
@@ -606,6 +632,18 @@ const goBack = () => {
 
 .send-btn:hover {
   background: #d62839;
+}
+
+.push-warning {
+  color: #e6a23c;
+  font-size: 20px;
+  cursor: pointer;
+  margin-right: 5px;
+  transition: transform 0.2s;
+}
+
+.push-warning:hover {
+  transform: scale(1.2);
 }
 
 .emoji-picker {

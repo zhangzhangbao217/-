@@ -277,22 +277,27 @@ const notifyNewMessage = (msg: any, isChatPage: boolean) => {
 // 发送外部推送通知
 export const sendExternalPush = async (text: string) => {
   const key = getTargetPushKey();
-  if (!key) return;
+  if (!key) {
+    console.warn('[Push] 未配置接收者 Key，跳过推送');
+    return false;
+  }
 
-  console.log('尝试发送外部推送, Key:', key);
+  console.log(`[Push] 尝试向 Key(${key.substring(0, 8)}...) 发送推送`);
 
   try {
     // 使用 fetch 并开启 keepalive，确保即使页面关闭/切后台也能尽量完成请求
-    const url = `https://api2.pushdeer.com/message/push?pushkey=${key}&text=${encodeURIComponent('💕 恋爱窝新消息')}&desp=${encodeURIComponent(text)}&type=markdown`;
+    const url = `https://api2.pushdeer.com/message/push?pushkey=${key}&text=${encodeURIComponent('💕 恋爱窝新消息')}&desp=${encodeURIComponent(text)}&type=text`;
     
-    await fetch(url, {
+    const response = await fetch(url, {
       method: 'GET',
       keepalive: true,
       mode: 'no-cors' // 避免 CORS 预检请求阻塞
     });
     
-    console.log('外部推送请求已发出');
+    console.log('[Push] 外部推送请求已发出');
+    return true;
   } catch (error) {
-    console.error('外部推送发送失败:', error);
+    console.error('[Push] 外部推送发送失败:', error);
+    return false;
   }
 };
