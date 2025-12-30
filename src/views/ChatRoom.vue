@@ -110,11 +110,42 @@
     </div>
 
     <!-- 模拟切换用户按钮 (仅开发测试用) -->
-    <div class="dev-tools" v-if="isDev">
+    <div class="dev-tools">
+      <div class="push-status-indicator" :class="{ active: partnerPushKey }" @click="showSettings = true">
+        <div class="status-dot" :class="{ success: lastPushStatus?.success, fail: lastPushStatus && !lastPushStatus.success }"></div>
+        <span class="status-text">{{ partnerPushKey ? '推送已就绪' : '未配置推送' }}</span>
+      </div>
       <el-tag effect="dark" type="info" @click="handleToggleUser" style="cursor: pointer">
-        当前身份: {{ currentUser.name }} (点击切换)
+        身份: {{ currentUser.name }}
       </el-tag>
     </div>
+
+    <!-- 身份选择弹窗 -->
+    <el-dialog
+      v-model="showIdentityDialog"
+      title="💝 欢迎回来"
+      width="85%"
+      :close-on-click-modal="false"
+      :close-on-press-escape="false"
+      :show-close="false"
+      center
+      class="identity-dialog"
+    >
+      <div class="identity-selection">
+        <p class="select-tip">请选择你在这台设备上的身份：</p>
+        <div class="user-cards">
+          <div class="user-card" @click="selectIdentity(user1)">
+            <el-avatar :size="60" :src="user1.avatar" />
+            <span class="name">{{ user1.name }}</span>
+          </div>
+          <div class="user-card" @click="selectIdentity(user2)">
+            <el-avatar :size="60" :src="user2.avatar" />
+            <span class="name">{{ user2.name }}</span>
+          </div>
+        </div>
+        <p class="warning-text">⚠️ 选错身份将无法正常接收通知！</p>
+      </div>
+    </el-dialog>
 
     <!-- 通知设置弹窗 -->
     <el-dialog v-model="showSettings" title="🔔 通知设置" width="90%" class="settings-dialog">
@@ -172,6 +203,7 @@ import {
   parseMessage,
   saveMessages,
   sendExternalPush,
+  lastPushStatus,
   user1,
   user2
 } from '../services/chatManager';
@@ -187,6 +219,7 @@ const isDev = ref(true);
 const isInitialLoading = ref(false);
 const isRecording = ref(false);
 const showSettings = ref(false);
+const showIdentityDialog = ref(false);
 const myPushKey = ref('');
 const partnerPushKey = ref('');
 
@@ -205,17 +238,41 @@ const emojis = [
 
 // 初始化加载设置
 onMounted(async () => {
+  // 检查是否已选择身份
+  const savedUserId = localStorage.getItem('chat_user_id');
+  if (!savedUserId) {
+    showIdentityDialog.value = true;
+  }
+
   // 确保连接已初始化
   await initChat();
   
-  // 加载推送 Key
-  const isUser1 = currentUser.value.id === user1.id;
-  myPushKey.value = localStorage.getItem(isUser1 ? 'push_key_user1' : 'push_key_user2') || '';
-  partnerPushKey.value = localStorage.getItem(isUser1 ? 'push_key_user2' : 'push_key_user1') || '';
+  loadPushKeys();
 
   scrollToBottom();
   isInitialLoading.value = false;
 });
+
+const loadPushKeys = () => {
+  const isUser1 = currentUser.value.id === user1.id;
+  myPushKey.value = localStorage.getItem(isUser1 ? 'push_key_user1' : 'push_key_user2') || '';
+  partnerPushKey.value = localStorage.getItem(isUser1 ? 'push_key_user2' : 'push_key_user1') || '';
+};
+
+const selectIdentity = async (user: any) => {
+  currentUser.value = user;
+  localStorage.setItem('chat_user_id', user.id);
+  showIdentityDialog.value = false;
+  
+  ElMessage.success(`欢迎你，${user.name}！`);
+  isInitialLoading.value = true;
+  messages.value = [];
+  
+  await initChat();
+  loadPushKeys();
+  
+  isInitialLoading.value = false;
+};
 
 const saveSettings = () => {
   const isUser1 = currentUser.value.id === user1.id;
@@ -669,6 +726,87 @@ const goBack = () => {
   bottom: 80px;
   right: 20px;
   z-index: 100;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.push-status-indicator {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.9);
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 11px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+  cursor: pointer;
+  border: 1px solid transparent;
+}
+
+.push-status-indicator.active {
+  border-color: rgba(76, 175, 80, 0.2);
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #ccc;
+}
+
+.status-dot.success {
+  background: #4caf50;
+  box-shadow: 0 0 4px #4caf50;
+}
+
+.status-dot.fail {
+  background: #f44336;
+  box-shadow: 0 0 4px #f44336;
+}
+
+.identity-selection {
+  padding: 10px 0;
+}
+
+.select-tip {
+  text-align: center;
+  color: #666;
+  margin-bottom: 20px;
+}
+
+.user-cards {
+  display: flex;
+  justify-content: space-around;
+  margin-bottom: 20px;
+}
+
+.user-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  padding: 15px;
+  border-radius: 12px;
+  transition: all 0.2s;
+}
+
+.user-card:hover {
+  background: #fff5f7;
+  transform: translateY(-5px);
+}
+
+.user-card .name {
+  font-weight: bold;
+  color: #e63946;
+}
+
+.warning-text {
+  font-size: 12px;
+  color: #999;
+  text-align: center;
 }
 
 /* 滚动条美化 */

@@ -66,6 +66,7 @@ export const globalConversation = ref<any>(null);
 export const globalIsOnline = ref(false);
 export const isConnecting = ref(false);
 export const currentUser = ref(user1);
+export const lastPushStatus = ref<{success: boolean, time: number, target: string} | null>(null);
 
 // 初始化时从本地存储加载历史记录
 const getInitialMessages = () => {
@@ -279,25 +280,29 @@ export const sendExternalPush = async (text: string) => {
   const key = getTargetPushKey();
   if (!key) {
     console.warn('[Push] 未配置接收者 Key，跳过推送');
+    lastPushStatus.value = { success: false, time: Date.now(), target: '未配置Key' };
     return false;
   }
 
-  console.log(`[Push] 尝试向 Key(${key.substring(0, 8)}...) 发送推送`);
+  const targetName = currentUser.value.id === user1.id ? user2.name : user1.name;
+  console.log(`[Push] 尝试向 ${targetName} (${key.substring(0, 8)}...) 发送推送`);
 
   try {
-    // 使用 fetch 并开启 keepalive，确保即使页面关闭/切后台也能尽量完成请求
     const url = `https://api2.pushdeer.com/message/push?pushkey=${key}&text=${encodeURIComponent('💕 恋爱窝新消息')}&desp=${encodeURIComponent(text)}&type=text`;
     
+    // 使用 fetch 并开启 keepalive
     const response = await fetch(url, {
       method: 'GET',
       keepalive: true,
-      mode: 'no-cors' // 避免 CORS 预检请求阻塞
+      mode: 'no-cors'
     });
     
     console.log('[Push] 外部推送请求已发出');
+    lastPushStatus.value = { success: true, time: Date.now(), target: targetName };
     return true;
   } catch (error) {
     console.error('[Push] 外部推送发送失败:', error);
+    lastPushStatus.value = { success: false, time: Date.now(), target: targetName };
     return false;
   }
 };
