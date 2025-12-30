@@ -12,9 +12,9 @@ export const isMuted = ref(false);
 export const isCameraOff = ref(false);
 
 // 外部传入的发送信号函数，避免循环依赖
-let signalingSender: ((data: any) => Promise<void>) | null = null;
+let signalingSender: ((data: any, options?: any) => Promise<void>) | null = null;
 
-export const setSignalingSender = (sender: (data: any) => Promise<void>) => {
+export const setSignalingSender = (sender: (data: any, options?: any) => Promise<void>) => {
   signalingSender = sender;
 };
 
