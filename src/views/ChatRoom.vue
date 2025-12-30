@@ -122,6 +122,7 @@ import {
   initChat,
   parseMessage,
   saveMessages,
+  sendExternalPush,
   user1,
   user2
 } from '../services/chatManager';
@@ -201,6 +202,8 @@ const sendMessage = async () => {
       saveMessages();
     }
     scrollToBottom();
+    // 发送外部推送
+    sendExternalPush(text);
   } catch (error: any) {
     inputMsg.value = text;
     ElMessage.error('消息发送失败: ' + (error.message || '未知错误'));
@@ -224,6 +227,8 @@ const handleImageUpload = async (uploadFile: any) => {
     messages.value.push(newMsg);
     saveMessages();
     scrollToBottom();
+    // 发送外部推送
+    sendExternalPush(`[图片消息]`);
   } catch (error) {
     ElMessage.error('图片发送失败');
   }
@@ -302,6 +307,8 @@ const sendVoiceMessage = async (blob: Blob, duration: number) => {
     messages.value.push(newMsg);
     saveMessages();
     scrollToBottom();
+    // 发送外部推送
+    sendExternalPush(`[语音消息]`);
   } catch (error) {
     ElMessage.error('语音发送失败');
   }

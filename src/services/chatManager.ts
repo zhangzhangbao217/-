@@ -3,7 +3,8 @@ import { Realtime, TextMessage } from 'leancloud-realtime';
 import * as RealtimeModule from 'leancloud-realtime';
 // @ts-ignore
 import AV from 'leancloud-storage';
-import { ElNotification } from 'element-plus';
+import { ElNotification, ElMessage } from 'element-plus';
+import axios from 'axios';
 
 const { ImageMessage, AudioMessage } = RealtimeModule as any;
 
@@ -13,6 +14,9 @@ const APP_KEY = 'FyOvCD2YFzhmbeabWLjLeeGz';
 const SERVER_URL = 'https://il767g7c.lc-cn-n1-shared.com';
 const CONVERSATION_ID = 'sweet_love_chat_v1';
 const NOTIFY_SOUND_URL = 'https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3';
+
+// 外部推送配置 (PushDeer)
+const getPushKey = () => 'PDU38226Ti4RnRcz0DSd9uHKLq1QGjsOJvm3uJnsA';
 
 // 用户定义
 export const user1 = {
@@ -224,5 +228,26 @@ const notifyNewMessage = (msg: any, isChatPage: boolean) => {
       position: 'top-right',
       duration: 3000
     });
+  }
+};
+
+// 发送外部推送通知
+export const sendExternalPush = async (text: string) => {
+  const key = getPushKey();
+  if (!key) return;
+
+  try {
+    // 使用 PushDeer 接口
+    await axios.get(`https://api2.pushdeer.com/message/push`, {
+      params: {
+        pushkey: key,
+        text: `💕 恋爱窝新消息`,
+        desp: text,
+        type: 'markdown'
+      }
+    });
+    console.log('外部推送发送成功');
+  } catch (error) {
+    console.error('外部推送发送失败:', error);
   }
 };
