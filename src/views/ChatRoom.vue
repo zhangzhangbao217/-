@@ -13,6 +13,7 @@
           <el-button :icon="MoreFilled" circle class="header-btn" />
           <template #dropdown>
             <el-dropdown-menu>
+              <el-dropdown-item command="test_push">测试推送 (检查手机)</el-dropdown-item>
               <el-dropdown-item command="clear">清空聊天记录</el-dropdown-item>
               <el-dropdown-item command="export">导出聊天记录</el-dropdown-item>
             </el-dropdown-menu>
@@ -337,7 +338,10 @@ const handleToggleUser = async () => {
 };
 
 const handleMoreCommand = (command: string) => {
-  if (command === 'clear') {
+  if (command === 'test_push') {
+    sendExternalPush('这是一条测试推送，如果你收到这条消息，说明配置成功啦！❤️');
+    ElMessage.success('测试推送已发出，请检查手机通知 (PushDeer)');
+  } else if (command === 'clear') {
     ElMessageBox.confirm('确定要清空所有聊天记录吗？', '提示', {
       type: 'warning'
     }).then(() => {

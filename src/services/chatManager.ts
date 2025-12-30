@@ -16,7 +16,33 @@ const CONVERSATION_ID = 'sweet_love_chat_v1';
 const NOTIFY_SOUND_URL = 'https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3';
 
 // 外部推送配置 (PushDeer)
-const getPushKey = () => 'PDU38226Ti4RnRcz0DSd9uHKLq1QGjsOJvm3uJnsA';
+// 用户 1 的推送密钥（发给用户 1 的时候使用）
+const DEFAULT_PUSH_KEY_USER1 = 'PDU38226Ti4RnRcz0DSd9uHKLq1QGjsOJvm3uJnsA';
+// 用户 2 的推送密钥（目前先共用同一个，如果用户提供了第二个再修改）
+const DEFAULT_PUSH_KEY_USER2 = 'PDU38226Ti4RnRcz0DSd9uHKLq1QGjsOJvm3uJnsA';
+
+const getTargetPushKey = () => {
+  // 优先从本地存储读取（方便用户自定义密钥）
+  const customKey1 = localStorage.getItem('push_key_user1');
+  const customKey2 = localStorage.getItem('push_key_user2');
+  
+  const key1 = customKey1 || DEFAULT_PUSH_KEY_USER1;
+  const key2 = customKey2 || DEFAULT_PUSH_KEY_USER2;
+
+  // 如果当前是用户 1，那么推送给用户 2
+  // 如果当前是用户 2，那么推送给用户 1
+  return currentUser.value.id === user1.id ? key2 : key1;
+};
+
+const getMyPushKey = () => {
+  const customKey1 = localStorage.getItem('push_key_user1');
+  const customKey2 = localStorage.getItem('push_key_user2');
+  
+  const key1 = customKey1 || DEFAULT_PUSH_KEY_USER1;
+  const key2 = customKey2 || DEFAULT_PUSH_KEY_USER2;
+
+  return currentUser.value.id === user1.id ? key1 : key2;
+};
 
 // 用户定义
 export const user1 = {
@@ -118,15 +144,19 @@ export const initChat = async (silent = false) => {
 
     globalIsOnline.value = true;
     setupGlobalListeners();
-    // 监听页面可见性变化，回到前台时立即同步
-    document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'visible') {
-        console.log('页面回到前台，检查连接...');
-        if (!globalIsOnline.value) {
-          initChat(true);
+    
+    // 监听页面可见性变化，回到前台时立即同步（确保只绑定一次）
+    if (!(window as any).visibilityListenerBound) {
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') {
+          console.log('页面回到前台，检查连接...');
+          if (!globalIsOnline.value) {
+            initChat(true);
+          }
         }
-      }
-    });
+      });
+      (window as any).visibilityListenerBound = true;
+    }
     console.log('全局聊天连接成功');
   } catch (error) {
     console.error('全局聊天初始化失败:', error);
@@ -212,14 +242,24 @@ const notifyNewMessage = (msg: any, isChatPage: boolean) => {
   audio.play().catch(() => {});
 
   // 2. 浏览器系统通知 (如果页面不在前台)
-  if (document.hidden && 'Notification' in window && Notification.permission === 'granted') {
-    new Notification(`💕 来自 ${msg.sender} 的新消息`, {
-      body: msg.contentType === 'text' ? msg.content : `[${msg.contentType === 'image' ? '图片' : '语音'}]`,
-      icon: msg.avatar
-    });
+  if (document.hidden) {
+    if ('Notification' in window && Notification.permission === 'granted') {
+      new Notification(`💕 来自 ${msg.sender} 的新消息`, {
+        body: msg.contentType === 'text' ? msg.content : `[${msg.contentType === 'image' ? '图片' : '语音'}]`,
+        icon: msg.avatar
+      });
+    }
+    
+    // 3. 额外保险：如果页面在后台，且没能弹出系统通知（比如移动端浏览器限制），则尝试发一个外部推送给自己
+     const myKey = getMyPushKey();
+     if (myKey) {
+      const text = msg.contentType === 'text' ? msg.content : `[${msg.contentType === 'image' ? '图片' : '语音'}]`;
+      const url = `https://api2.pushdeer.com/message/push?pushkey=${myKey}&text=${encodeURIComponent('💕 收到新消息')}&desp=${encodeURIComponent(text)}&type=markdown`;
+      fetch(url, { method: 'GET', keepalive: true, mode: 'no-cors' }).catch(() => {});
+    }
   }
 
-  // 3. 应用内顶部弹窗通知 (如果不在聊天页，或者页面在前台但不在聊天页)
+  // 4. 应用内顶部弹窗通知 (如果不在聊天页，或者页面在前台但不在聊天页)
   if (!isChatPage) {
     ElNotification({
       title: `新消息: ${msg.sender}`,
@@ -233,20 +273,22 @@ const notifyNewMessage = (msg: any, isChatPage: boolean) => {
 
 // 发送外部推送通知
 export const sendExternalPush = async (text: string) => {
-  const key = getPushKey();
+  const key = getTargetPushKey();
   if (!key) return;
 
+  console.log('尝试发送外部推送, Key:', key);
+
   try {
-    // 使用 PushDeer 接口
-    await axios.get(`https://api2.pushdeer.com/message/push`, {
-      params: {
-        pushkey: key,
-        text: `💕 恋爱窝新消息`,
-        desp: text,
-        type: 'markdown'
-      }
+    // 使用 fetch 并开启 keepalive，确保即使页面关闭/切后台也能尽量完成请求
+    const url = `https://api2.pushdeer.com/message/push?pushkey=${key}&text=${encodeURIComponent('💕 恋爱窝新消息')}&desp=${encodeURIComponent(text)}&type=markdown`;
+    
+    await fetch(url, {
+      method: 'GET',
+      keepalive: true,
+      mode: 'no-cors' // 避免 CORS 预检请求阻塞
     });
-    console.log('外部推送发送成功');
+    
+    console.log('外部推送请求已发出');
   } catch (error) {
     console.error('外部推送发送失败:', error);
   }
