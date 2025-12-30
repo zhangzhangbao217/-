@@ -5,6 +5,7 @@ import * as RealtimeModule from 'leancloud-realtime';
 import AV from 'leancloud-storage';
 import { ElNotification, ElMessage } from 'element-plus';
 import axios from 'axios';
+import { handleSignaling } from './webrtcService';
 
 const { ImageMessage, AudioMessage } = RealtimeModule as any;
 
@@ -145,6 +146,13 @@ const setupGlobalListeners = () => {
 
   globalChatClient.value.off('message');
   globalChatClient.value.on('message', (message: any) => {
+    // 拦截信令消息
+    if (message instanceof TextMessage && message.getText().startsWith('__SIGNAL__:')) {
+      const signalData = JSON.parse(message.getText().replace('__SIGNAL__:', ''));
+      handleSignaling(signalData);
+      return; // 信令消息不显示在聊天列表中
+    }
+
     const parsedMsg = parseMessage(message);
     
     // 如果不在聊天页面，或者消息不是自己发的，显示通知

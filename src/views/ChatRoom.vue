@@ -9,15 +9,19 @@
             {{ isConnecting ? '连接中...' : (isPartnerOnline ? '在线' : '离线') }}
           </span>
         </div>
-        <el-dropdown @command="handleMoreCommand">
-          <el-button :icon="MoreFilled" circle class="header-btn" />
-          <template #dropdown>
-            <el-dropdown-menu>
-              <el-dropdown-item command="clear">清空聊天记录</el-dropdown-item>
-              <el-dropdown-item command="export">导出聊天记录</el-dropdown-item>
-            </el-dropdown-menu>
-          </template>
-        </el-dropdown>
+        <div class="header-actions">
+          <el-button :icon="VideoCamera" circle @click="startCall('video')" class="header-btn" />
+          <el-button :icon="Phone" circle @click="startCall('voice')" class="header-btn" />
+          <el-dropdown @command="handleMoreCommand">
+            <el-button :icon="MoreFilled" circle class="header-btn" />
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item command="clear">清空聊天记录</el-dropdown-item>
+                <el-dropdown-item command="export">导出聊天记录</el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
+        </div>
       </div>
     </div>
 
@@ -133,11 +137,55 @@
         <p class="warning-text">⚠️ 选错身份将无法正常同步消息！</p>
       </div>
     </el-dialog>
+
+    <!-- 通话界面覆盖层 -->
+    <transition name="fade">
+      <div v-if="callStatus !== 'idle'" class="call-overlay">
+        <!-- 呼叫中/收到呼叫 -->
+        <div v-if="callStatus === 'calling' || callStatus === 'receiving'" class="call-pending">
+          <el-avatar :size="100" :src="partnerInfo.avatar" class="call-avatar" />
+          <h2 class="call-name">{{ partnerInfo.name }}</h2>
+          <p class="call-status-text">
+            {{ callStatus === 'calling' ? `正在呼叫对方${callType === 'video' ? '视频' : '语音'}...` : `发来${callType === 'video' ? '视频' : '语音'}通话...` }}
+          </p>
+          
+          <div class="call-actions">
+            <template v-if="callStatus === 'receiving'">
+              <el-button type="success" :icon="Check" circle @click="handleAccept" class="action-btn accept" />
+              <el-button type="danger" :icon="Close" circle @click="handleHangup" class="action-btn decline" />
+            </template>
+            <template v-else>
+              <el-button type="danger" :icon="Close" circle @click="handleHangup" class="action-btn decline" />
+            </template>
+          </div>
+        </div>
+
+        <!-- 通话中 -->
+        <div v-if="callStatus === 'connected'" class="call-connected" :class="{ 'is-video': callType === 'video' }">
+          <div v-if="callType === 'video'" class="video-container">
+            <video ref="remoteVideoRef" autoplay playsinline class="remote-video"></video>
+            <video ref="localVideoRef" autoplay playsinline muted class="local-video"></video>
+          </div>
+          
+          <div v-else class="voice-container">
+            <el-avatar :size="120" :src="partnerInfo.avatar" class="call-avatar pulse" />
+            <h2 class="call-name">{{ partnerInfo.name }}</h2>
+            <p class="call-timer">{{ formatDuration(callDuration) }}</p>
+          </div>
+
+          <div class="call-controls">
+            <el-button :type="isMuted ? 'danger' : 'info'" :icon="isMuted ? Mute : Microphone" circle @click="toggleMute" />
+            <el-button type="danger" :icon="Close" circle @click="handleHangup" class="hangup-btn" />
+            <el-button v-if="callType === 'video'" :type="isCameraOff ? 'danger' : 'info'" :icon="isCameraOff ? VideoPause : VideoCamera" circle @click="toggleCamera" />
+          </div>
+        </div>
+      </div>
+    </transition>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, nextTick, watch } from 'vue';
+import { ref, onMounted, onUnmounted, nextTick, watch, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { 
@@ -147,7 +195,12 @@ import {
   Star, 
   Microphone, 
   VideoPause, 
-  Service
+  Service,
+  VideoCamera,
+  Phone,
+  Close,
+  Check,
+  Mute
 } from '@element-plus/icons-vue';
 import { TextMessage } from 'leancloud-realtime';
 import * as RealtimeModule from 'leancloud-realtime';
@@ -165,11 +218,24 @@ import {
   user1,
   user2
 } from '../services/chatManager';
+import { 
+  callStatus, 
+  callType, 
+  localStream, 
+  remoteStream, 
+  startCall, 
+  acceptCall, 
+  handleHangup, 
+  isMuted, 
+  isCameraOff
+} from '../services/webrtcService';
 
 const { ImageMessage, AudioMessage } = RealtimeModule as any;
 
 const router = useRouter();
 const messageListRef = ref<HTMLElement | null>(null);
+const localVideoRef = ref<HTMLVideoElement | null>(null);
+const remoteVideoRef = ref<HTMLVideoElement | null>(null);
 
 const inputMsg = ref('');
 const isPartnerOnline = globalIsOnline;
@@ -177,6 +243,66 @@ const isDev = ref(true);
 const isInitialLoading = ref(false);
 const isRecording = ref(false);
 const showIdentityDialog = ref(false);
+
+const callDuration = ref(0);
+let callTimer: any = null;
+
+const partnerInfo = computed(() => currentUser.value.id === user1.id ? user2 : user1);
+
+// 监听流变化并绑定到 video 标签
+watch(localStream, (stream) => {
+  if (stream && localVideoRef.value) {
+    localVideoRef.value.srcObject = stream;
+  }
+});
+
+watch(remoteStream, (stream) => {
+  if (stream && remoteVideoRef.value) {
+    remoteVideoRef.value.srcObject = stream;
+  }
+});
+
+// 监听通话状态
+watch(callStatus, (status) => {
+  if (status === 'connected') {
+    callDuration.value = 0;
+    callTimer = setInterval(() => {
+      callDuration.value++;
+    }, 1000);
+  } else if (status === 'idle') {
+    clearInterval(callTimer);
+  }
+});
+
+const handleAccept = async () => {
+  await acceptCall();
+};
+
+const toggleMute = () => {
+  if (localStream.value) {
+    const audioTrack = localStream.value.getAudioTracks()[0];
+    if (audioTrack) {
+      audioTrack.enabled = !audioTrack.enabled;
+      isMuted.value = !audioTrack.enabled;
+    }
+  }
+};
+
+const toggleCamera = () => {
+  if (localStream.value) {
+    const videoTrack = localStream.value.getVideoTracks()[0];
+    if (videoTrack) {
+      videoTrack.enabled = !videoTrack.enabled;
+      isCameraOff.value = !videoTrack.enabled;
+    }
+  }
+};
+
+const formatDuration = (seconds: number) => {
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+};
 
 let mediaRecorder: MediaRecorder | null = null;
 let audioChunks: Blob[] = [];
@@ -440,6 +566,11 @@ const goBack = () => {
   display: flex;
   align-items: center;
   justify-content: space-between;
+}
+
+.header-actions {
+  display: flex;
+  gap: 10px;
 }
 
 .chat-info {
@@ -713,5 +844,128 @@ const goBack = () => {
 
 .settings-dialog :deep(.el-dialog__body) {
   padding-top: 10px;
+}
+
+/* 通话界面样式 */
+.call-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: #1a1a1a;
+  z-index: 2000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: white;
+}
+
+.call-pending {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+}
+
+.call-avatar {
+  border: 4px solid rgba(255, 255, 255, 0.2);
+}
+
+.call-avatar.pulse {
+  animation: avatarPulse 2s infinite;
+}
+
+@keyframes avatarPulse {
+  0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(230, 57, 70, 0.4); }
+  70% { transform: scale(1.05); box-shadow: 0 0 0 20px rgba(230, 57, 70, 0); }
+  100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(230, 57, 70, 0); }
+}
+
+.call-name {
+  font-size: 24px;
+  font-weight: bold;
+}
+
+.call-status-text {
+  font-size: 16px;
+  color: #ccc;
+}
+
+.call-actions {
+  display: flex;
+  gap: 40px;
+  margin-top: 40px;
+}
+
+.action-btn {
+  width: 64px;
+  height: 64px;
+  font-size: 24px;
+}
+
+.call-connected {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  padding: 40px 0;
+}
+
+.video-container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  background: black;
+}
+
+.remote-video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.local-video {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  width: 120px;
+  height: 160px;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 2px solid white;
+  background: #333;
+}
+
+.voice-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  margin-top: 100px;
+}
+
+.call-timer {
+  font-size: 20px;
+  font-family: monospace;
+}
+
+.call-controls {
+  display: flex;
+  gap: 30px;
+  z-index: 10;
+}
+
+.call-controls .el-button {
+  width: 56px;
+  height: 56px;
+  font-size: 20px;
+}
+
+.hangup-btn {
+  transform: scale(1.2);
 }
 </style>
