@@ -18,7 +18,7 @@
         />
         <el-dropdown @command="handleDropdownCommand">
           <div class="user-info">
-            <el-avatar icon="el-icon-user" class="user-avatar" />
+            <el-avatar :src="'/df49bc6ca7d5b77ace3eeaec5d0008c6.jpg'" class="user-avatar" />
             <span class="username">{{ userName }}</span>
             <el-icon class="arrow-icon">
               <ArrowDown />

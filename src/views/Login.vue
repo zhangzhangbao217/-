@@ -46,14 +46,13 @@
         </el-form-item>
 
         <!-- 登录按钮 -->
-        <el-form-item>
+        <el-form-item class="login-btn-item">
           <el-button
               type="primary"
               size="large"
               class="login-btn"
               :loading="isLoading"
               @click="handleLogin"
-              full-width
           >
             登 录
           </el-button>
@@ -234,15 +233,23 @@ onMounted(() => {
 }
 
 /* 表单操作区（记住密码+忘记密码） */
-.form-actions {
+.form-actions :deep(.el-form-item__content) {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 25px;
+  width: 100%;
 }
 
 /* 登录按钮 */
+.login-btn-item :deep(.el-form-item__content) {
+  margin-left: 0 !important;
+  display: flex;
+  justify-content: center;
+}
+
 .login-btn {
+  width: 100%;
+  max-width: 200px;
   height: 50px;
   font-size: 18px;
   background-color: #ff69b4;
