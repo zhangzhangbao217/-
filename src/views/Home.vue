@@ -89,6 +89,10 @@
             <el-icon><Stamp /></el-icon>
             <template #title>专属契约</template>
           </el-menu-item>
+          <el-menu-item index="8" class="menu-item" @click="goToChat">
+            <el-icon><ChatDotRound /></el-icon>
+            <template #title>秘密聊天室</template>
+          </el-menu-item>
         </el-menu>
       </el-aside>
 
@@ -176,6 +180,12 @@
             <div class="stats-content">
               <span class="stats-label">甜蜜语录</span>
               <span class="stats-value">36条</span>
+            </div>
+          </el-card>
+          <el-card class="stats-card" @click="goToChat" >
+            <div class="stats-content">
+              <span class="stats-label">秘密聊天</span>
+              <span class="stats-value">点击进入</span>
             </div>
           </el-card>
         </div>
@@ -338,6 +348,11 @@ const goToBucketList = () => {
 const goToContracts = () => {
   closeSidebarOnMobile()
   router.push('/contracts')
+}
+//跳转到聊天室
+const goToChat = () => {
+  closeSidebarOnMobile()
+  router.push('/chat')
 }
 // 核心配置：你的恋爱开始时间（固定为2019-12-29 13:14:00）
 const userName = ref('亲爱的')

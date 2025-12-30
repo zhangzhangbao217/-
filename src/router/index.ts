@@ -13,6 +13,8 @@ import LoveAlbum from '@/views/LoveAlbum.vue'
 import DianDianDiDi from '../views/DianDianDiDi.vue';
 import BucketList from '../views/BucketList.vue';
 import Contracts from '../views/Contracts.vue';
+import ChatRoom from '../views/ChatRoom.vue';
+
 const routes = [
     { path: '/', redirect: '/login' }, // 根路径重定向到登录页
     { path: '/login', name: 'Login', component: Login },
@@ -21,6 +23,13 @@ const routes = [
         name: 'Home',
         component: Home,
         meta: { requiresAuth: true } // 需要登录才能访问
+    },
+    // 新增：聊天室路由
+    {
+        path: '/chat',
+        name: 'ChatRoom',
+        component: ChatRoom,
+        meta: { requiresAuth: true }
     },
     // 新增纪念日管理路由
     {
