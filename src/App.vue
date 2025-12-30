@@ -45,16 +45,13 @@
         <component :is="Component" />
       </transition>
     </router-view>
-
-    <!-- 全局背景音乐播放器 -->
-    <BgmPlayer />
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
-import BgmPlayer from './components/BgmPlayer.vue'
+import { initChat } from './services/chatManager'
 
 const router = useRouter()
 const cursorX = ref(-100)
@@ -173,6 +170,14 @@ const triggerEasterEggBurst = () => {
 }
 
 onMounted(() => {
+  // 初始化全局聊天连接
+  initChat(true);
+  
+  // 请求通知权限
+  if ('Notification' in window && Notification.permission === 'default') {
+    Notification.requestPermission();
+  }
+
   generateHearts()
   window.addEventListener('mousemove', updateCursor)
   window.addEventListener('mousedown', handleMouseDown)
