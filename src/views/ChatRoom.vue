@@ -41,7 +41,9 @@
           </div>
           <div class="bubble">
             <template v-if="msg.contentType === 'text'">
-              {{ msg.content }}
+              <div class="text-content">
+                {{ msg.content }}
+              </div>
             </template>
             <template v-else-if="msg.contentType === 'image'">
               <el-image :src="msg.content" :preview-src-list="[msg.content]" fit="cover" class="msg-image" />
@@ -50,6 +52,28 @@
               <div class="voice-bubble" @click="playVoice(msg.content)">
                 <el-icon class="voice-icon"><Service /></el-icon>
                 <span class="voice-duration">{{ msg.duration }}''</span>
+              </div>
+            </template>
+            <template v-else-if="msg.contentType === 'call_log'">
+              <div class="call-log-content">
+                <div class="call-log-body">
+                  <el-icon class="call-icon">
+                    <VideoCamera v-if="JSON.parse(msg.content).callType === 'video'" />
+                    <Phone v-else />
+                  </el-icon>
+                  <div class="call-info">
+                    <span class="call-status">
+                      {{ 
+                        JSON.parse(msg.content).status === 'completed' ? '通话完成' :
+                        JSON.parse(msg.content).status === 'missed' ? '未接听' :
+                        JSON.parse(msg.content).status === 'declined' ? '已拒绝' : '通话结束'
+                      }}
+                    </span>
+                    <span v-if="JSON.parse(msg.content).status === 'completed'" class="call-duration">
+                      {{ formatDuration(JSON.parse(msg.content).duration) }}
+                    </span>
+                  </div>
+                </div>
               </div>
             </template>
           </div>
@@ -231,8 +255,10 @@ import {
   handleHangup, 
   isMuted, 
   isCameraOff,
+  callDurationSeconds,
   isWaitingForAck,
   setSignalingSender,
+  setCallLogSender,
   toggleMute,
   toggleCamera
 } from '../services/webrtcService';
@@ -251,6 +277,14 @@ setSignalingSender(async (data, options = { transient: true }) => {
     const message = new TextMessage(`__SIGNAL__:${JSON.stringify(data)}`);
     // 允许通过 options 控制是否为 transient
     await globalConversation.value.send(message, options);
+  }
+});
+
+// 设置通话记录发送器
+setCallLogSender(async (logData) => {
+  if (globalConversation.value) {
+    const message = new TextMessage(`__CALL_LOG__:${JSON.stringify(logData)}`);
+    await globalConversation.value.send(message);
   }
 });
 
@@ -291,9 +325,9 @@ watch([remoteStream, remoteAudioRef], ([stream, audioEl]) => {
 // 监听通话状态
 watch(callStatus, (status) => {
   if (status === 'connected') {
-    callDuration.value = 0;
+    callDurationSeconds.value = 0;
     callTimer = setInterval(() => {
-      callDuration.value++;
+      callDurationSeconds.value++;
     }, 1000);
   } else if (status === 'idle') {
     clearInterval(callTimer);
@@ -632,6 +666,54 @@ const goBack = () => {
 .identity-notice {
   text-align: center;
   margin-bottom: 10px;
+  opacity: 0.8;
+}
+
+/* 通话记录样式 */
+.call-log-content {
+  padding: 8px 12px;
+  background: #f0f2f5;
+  border-radius: 8px;
+  max-width: 180px;
+}
+
+.is-mine .call-log-content {
+  background: #e1f3d8;
+}
+
+.call-log-body {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.call-icon {
+  font-size: 20px;
+  color: #606266;
+}
+
+.is-mine .call-icon {
+  color: #67c23a;
+}
+
+.call-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.call-status {
+  font-size: 14px;
+  font-weight: 500;
+  color: #303133;
+}
+
+.call-duration {
+  font-size: 12px;
+  color: #909399;
+}
+
+.is-mine .call-duration {
+  color: #67c23a;
   opacity: 0.8;
 }
 

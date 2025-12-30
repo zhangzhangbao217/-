@@ -10,13 +10,8 @@ export const localStream = ref<MediaStream | null>(null);
 export const remoteStream = ref<MediaStream | null>(null);
 export const isMuted = ref(false);
 export const isCameraOff = ref(false);
+export const callDurationSeconds = ref(0);
 
-// 外部传入的发送信号函数，避免循环依赖
-let signalingSender: ((data: any, options?: any) => Promise<void>) | null = null;
-
-export const setSignalingSender = (sender: (data: any, options?: any) => Promise<void>) => {
-  signalingSender = sender;
-};
 
 let peerConnection: RTCPeerConnection | null = null;
 let pendingCandidates: RTCIceCandidateInit[] = [];
@@ -71,6 +66,19 @@ const stopRingtones = () => {
     incomingAudio.pause();
     incomingAudio = null;
   }
+};
+
+// 外部传入的发送信号函数，避免循环依赖
+let signalingSender: ((data: any, options?: any) => Promise<void>) | null = null;
+
+export const setSignalingSender = (sender: (data: any, options?: any) => Promise<void>) => {
+  signalingSender = sender;
+};
+
+// 外部传入的发送通话记录函数
+let callLogSender: ((log: any) => Promise<void>) | null = null;
+export const setCallLogSender = (sender: (log: any) => Promise<void>) => {
+  callLogSender = sender;
 };
 
 // 发送信令消息
@@ -284,8 +292,6 @@ export const acceptCall = async () => {
 // 挂断
 export const handleHangup = (shouldNotify: any = true) => {
   console.log('正在执行挂断清理...');
-  currentCallId = null;
-  
   // 清理所有定时器
   if (callInviteTimer) {
     clearInterval(callInviteTimer);
@@ -301,6 +307,28 @@ export const handleHangup = (shouldNotify: any = true) => {
   
   if (notify) {
     sendSignalingMessage({ type: 'hangup' });
+    
+    // 生成并发送通话记录
+    if (callLogSender) {
+      let status: 'completed' | 'missed' | 'declined' | 'busy' = 'completed';
+      
+      if (callStatus.value === 'calling') {
+        status = 'missed'; // 我拨出的，对方没接
+      } else if (callStatus.value === 'receiving') {
+        status = 'declined'; // 对方拨给我的，我没接
+      } else if (callStatus.value === 'connected') {
+        status = 'completed'; // 通话已完成
+      }
+      
+      callLogSender({
+        type: 'call_log',
+        callType: callType.value,
+        status: status,
+        duration: callDurationSeconds.value,
+        callId: currentCallId,
+        timestamp: Date.now()
+      });
+    }
   }
 
   if (localStream.value) {
@@ -331,7 +359,9 @@ export const handleHangup = (shouldNotify: any = true) => {
 
   stopRingtones();
   callStatus.value = 'idle';
+  callDurationSeconds.value = 0;
   isWaitingForAck.value = false;
+  currentCallId = null;
   isMuted.value = false;
   isCameraOff.value = false;
   pendingCandidates = [];

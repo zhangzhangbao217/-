@@ -222,8 +222,20 @@ export const parseMessage = (msg: any) => {
   let duration = 0;
 
   if (msg instanceof TextMessage) {
-    contentType = 'text';
-    content = msg.getText();
+    const text = msg.getText();
+    if (text.startsWith('__CALL_LOG__:')) {
+      try {
+        const logData = JSON.parse(text.replace('__CALL_LOG__:', ''));
+        contentType = 'call_log';
+        content = JSON.stringify(logData);
+      } catch (e) {
+        contentType = 'text';
+        content = text;
+      }
+    } else {
+      contentType = 'text';
+      content = text;
+    }
   } else if (msg instanceof ImageMessage) {
     contentType = 'image';
     content = msg.getFile().url();
