@@ -290,8 +290,45 @@ export const acceptCall = async () => {
 };
 
 // 挂断
-export const handleHangup = (shouldNotify: any = true) => {
-  console.log('正在执行挂断清理...');
+export const handleHangup = (shouldNotify: any = true, remoteInfo: any = null) => {
+  console.log('正在执行挂断清理...', { shouldNotify, remoteInfo });
+  
+  // 核心逻辑：谁挂断，谁负责生成并发送最终的通话记录消息
+  // 这样可以确保聊天记录里只有一条记录，且两端看到的是完全一样的
+  const notify = typeof shouldNotify === 'boolean' ? shouldNotify : true;
+  
+  if (notify) {
+    let finalStatus: 'completed' | 'missed' | 'declined' = 'completed';
+    if (callStatus.value === 'calling') finalStatus = 'missed';
+    else if (callStatus.value === 'receiving') finalStatus = 'declined';
+    else if (callStatus.value === 'connected') finalStatus = 'completed';
+
+    const finalDuration = callDurationSeconds.value;
+
+    // 发送挂断信号给对方，同时带上我这边判定的时长 and 状态
+    sendSignalingMessage({ 
+      type: 'hangup', 
+      duration: finalDuration, 
+      status: finalStatus 
+    });
+    
+    // 我是主动挂断方，我负责发通话记录消息到聊天窗口
+    if (callLogSender) {
+      callLogSender({
+        type: 'call_log',
+        callType: callType.value,
+        status: finalStatus,
+        duration: finalDuration,
+        callId: currentCallId,
+        timestamp: Date.now()
+      });
+    }
+  } else if (remoteInfo && callLogSender) {
+    // 我是被动挂断方（收到了 hangup 信号），但我不需要发通话记录消息
+    // 因为主动挂断方已经发过了，LeanCloud 会同步给我
+    console.log('被动挂断，等待同步对方发送的通话记录');
+  }
+
   // 清理所有定时器
   if (callInviteTimer) {
     clearInterval(callInviteTimer);
@@ -300,36 +337,6 @@ export const handleHangup = (shouldNotify: any = true) => {
   if (callTimeoutTimer) {
     clearTimeout(callTimeoutTimer);
     callTimeoutTimer = null;
-  }
-
-  // 如果是点击事件，shouldNotify 会是事件对象，也是 true
-  const notify = typeof shouldNotify === 'boolean' ? shouldNotify : true;
-  
-  if (notify) {
-    sendSignalingMessage({ type: 'hangup' });
-    
-    // 生成并发送通话记录
-    if (callLogSender) {
-      let status: 'completed' | 'missed' | 'declined' | 'busy' = 'completed';
-      
-      if (callStatus.value === 'calling') {
-        status = 'missed'; // 我拨出的，对方没接
-      } else if (callStatus.value === 'receiving') {
-        status = 'declined'; // 对方拨给我的，我点击挂断（拒绝）
-      } else if (callStatus.value === 'connected') {
-        status = 'completed'; // 通话已完成
-      }
-      
-      console.log(`发送通话记录: 状态=${status}, 时长=${callDurationSeconds.value}`);
-      callLogSender({
-        type: 'call_log',
-        callType: callType.value,
-        status: status,
-        duration: callDurationSeconds.value,
-        callId: currentCallId,
-        timestamp: Date.now()
-      });
-    }
   }
 
   if (localStream.value) {
@@ -472,9 +479,10 @@ export const handleSignaling = async (data: any) => {
       break;
 
     case 'hangup':
-      console.log('收到对方挂断信令，当前状态:', callStatus.value);
+      console.log('收到对方挂断信令，携带信息:', data);
       // 收到对方挂断时，我们不需要再发 hangup 给对方了，所以传 false
-      handleHangup(false);
+      // 传入 data 包含对方判定好的状态和时长
+      handleHangup(false, data);
       break;
 
     case 'busy':

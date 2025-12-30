@@ -32,11 +32,19 @@
           当前身份: {{ currentUser.name }}
         </el-tag>
       </div>
-      <div v-for="(msg, index) in messages" :key="index" :class="['message-item', msg.type]">
-        <el-avatar :size="40" :src="msg.avatar" class="avatar" />
+      <div v-for="(msg, index) in messages" :key="index" 
+           :class="['message-item', msg.from === currentUser.id ? 'mine' : 'other']">
+        <el-avatar 
+            :size="40" 
+            :src="msg.from === user1.id ? user1.avatar : user2.avatar" 
+            :class="['avatar', msg.from === user1.id ? 'avatar-user1' : 'avatar-user2']"
+          >
+            <!-- 备用显示：如果图片加载失败，显示名字首字母 -->
+            {{ msg.from === user1.id ? user1.name[0] : user2.name[0] }}
+          </el-avatar>
         <div class="message-content">
           <div class="message-info">
-            <span class="sender-name">{{ msg.sender }}</span>
+            <span class="sender-name">{{ msg.from === user1.id ? user1.name : user2.name }}</span>
             <span class="send-time">{{ formatTime(msg.time) }}</span>
           </div>
           <div class="bubble">
@@ -243,6 +251,7 @@ import {
   initChat,
   parseMessage,
   saveMessages,
+  loadLocalHistory,
   user1,
   user2
 } from '../services/chatManager';
@@ -299,7 +308,10 @@ const showIdentityDialog = ref(false);
 const callDuration = ref(0);
 let callTimer: any = null;
 
-const partnerInfo = computed(() => currentUser.value.id === user1.id ? user2 : user1);
+const partnerInfo = computed(() => {
+  // 这里必须实时响应 currentUser 的变化
+  return currentUser.value.id === user1.id ? user2 : user1;
+});
 
 // 监听流变化并绑定到 media 标签
 watch([localStream, localVideoRef], ([stream, videoEl]) => {
@@ -380,8 +392,9 @@ const selectIdentity = async (user: any) => {
   
   ElMessage.success(`欢迎你，${user.name}！`);
   isInitialLoading.value = true;
-  messages.value = [];
   
+  // 重新加载本地历史
+  loadLocalHistory();
   await initChat();
   
   isInitialLoading.value = false;
@@ -551,8 +564,9 @@ const handleToggleUser = async () => {
   
   ElMessage.info(`正在切换身份为: ${targetUser.name}...`);
   isInitialLoading.value = true;
-  messages.value = [];
   
+  // 重新加载本地历史并切换身份
+  loadLocalHistory();
   await initChat();
   
   isInitialLoading.value = false;
@@ -679,7 +693,7 @@ const goBack = () => {
   max-width: 200px;
 }
 
-.is-mine .call-log-content {
+.mine .call-log-content {
   background: #e1f3d8;
 }
 
@@ -694,7 +708,7 @@ const goBack = () => {
   color: #606266;
 }
 
-.is-mine .call-icon {
+.mine .call-icon {
   color: #67c23a;
 }
 
@@ -714,7 +728,7 @@ const goBack = () => {
   color: #909399;
 }
 
-.is-mine .call-duration {
+.mine .call-duration {
   color: #67c23a;
   opacity: 0.8;
 }
@@ -723,6 +737,43 @@ const goBack = () => {
   display: flex;
   gap: 12px;
   max-width: 85%;
+  align-items: flex-start;
+}
+
+.avatar {
+  flex-shrink: 0;
+  border: 2px solid white;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  font-weight: bold;
+}
+
+.avatar-user1 {
+  background-color: #fde2e2;
+  color: #f56c6c;
+}
+
+.avatar-user2 {
+  background-color: #e1f3d8;
+  color: #67c23a;
+}
+
+.avatar :deep(img) {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.avatar-placeholder {
+  width: 100%;
+  height: 100%;
+  background: #fde2e2;
+  color: #f56c6c;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 18px;
 }
 
 .message-item.mine {

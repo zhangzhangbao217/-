@@ -1,4 +1,4 @@
-import { ref } from 'vue';
+import { ref, reactive } from 'vue';
 import { Realtime, TextMessage } from 'leancloud-realtime';
 import * as RealtimeModule from 'leancloud-realtime';
 // @ts-ignore
@@ -17,36 +17,65 @@ const CONVERSATION_ID = 'sweet_love_chat_v1';
 const NOTIFY_SOUND_URL = 'https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3';
 
 // 用户定义
-export const user1 = {
+export const user1 = reactive({
   id: 'Hgtzsx',
   name: '张张包',
-  avatar: '/df49bc6ca7d5b77ace3eeaec5d0008c6.jpg'
-};
+  gender: 'female',
+  avatar: '/nv.jpg'
+});
 
-export const user2 = {
+export const user2 = reactive({
   id: 'Partner',
   name: '小黄包',
-  avatar: '/df49bc6ca7d5b77ace3eeaec5d0008c6.jpg'
-};
+  gender: 'male',
+  avatar: '/nan.jpg'
+});
 
 // 全局状态
 export const globalChatClient = ref<any>(null);
 export const globalConversation = ref<any>(null);
 export const globalIsOnline = ref(false);
 export const isConnecting = ref(false);
-export const currentUser = ref(user1);
+
+// 初始化当前用户：尝试从本地存储恢复，默认 user1
+const getInitialUser = () => {
+  const savedUserId = localStorage.getItem('chat_user_id');
+  if (savedUserId === user2.id) return user2;
+  return user1;
+};
+
+export const currentUser = ref(getInitialUser());
 
 // 初始化时从本地存储加载历史记录
 const getInitialMessages = () => {
   try {
     const savedMessages = localStorage.getItem('chat_history');
-    return savedMessages ? JSON.parse(savedMessages) : [];
+    if (!savedMessages) return [];
+    const parsed = JSON.parse(savedMessages);
+    
+    // 数据迁移和补全：确保消息有 from, sender, avatar 字段
+    return parsed.map((msg: any) => {
+      // 如果没有 from，根据 sender 补全
+      if (!msg.from) {
+        if (msg.sender === user1.name) msg.from = user1.id;
+        else if (msg.sender === user2.name) msg.from = user2.id;
+      }
+      // 根据 from 重新校准最新的名字和头像
+      const senderInfo = msg.from === user1.id ? user1 : user2;
+      msg.sender = senderInfo.name;
+      msg.avatar = senderInfo.avatar;
+      return msg;
+    });
   } catch (e) {
     return [];
   }
 };
 
 export const messages = ref<any[]>(getInitialMessages());
+
+export const loadLocalHistory = () => {
+  messages.value = getInitialMessages();
+};
 
 export const saveMessages = () => {
   localStorage.setItem('chat_history', JSON.stringify(messages.value.slice(-100)));
@@ -214,8 +243,9 @@ const setupGlobalListeners = () => {
 };
 
 export const parseMessage = (msg: any) => {
-  const isMine = msg.from === currentUser.value.id;
-  const senderInfo = msg.from === user1.id ? user1 : user2;
+  const fromId = msg.from || (msg.getSender ? msg.getSender() : currentUser.value.id);
+  const isMine = fromId === currentUser.value.id;
+  const senderInfo = fromId === user1.id ? user1 : user2;
   
   let contentType = 'text';
   let content = '';
@@ -247,13 +277,14 @@ export const parseMessage = (msg: any) => {
 
   return {
     id: msg.id || Math.random().toString(36).substr(2, 9),
+    from: fromId,
     sender: senderInfo.name,
     avatar: senderInfo.avatar,
     type: isMine ? 'mine' : 'other',
     contentType,
     content,
     duration,
-    time: msg.timestamp ? msg.timestamp.getTime() : Date.now()
+    time: msg.timestamp ? (msg.timestamp instanceof Date ? msg.timestamp.getTime() : msg.timestamp) : Date.now()
   };
 };
 

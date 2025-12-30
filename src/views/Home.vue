@@ -16,18 +16,25 @@
           @click="toggleDarkMode"
           :icon="isDarkMode ? Sunny : Moon"
         />
-        <el-dropdown @command="handleDropdownCommand">
+        <el-dropdown trigger="click" @command="handleDropdownCommand">
           <div class="user-info">
-            <el-avatar :src="'/df49bc6ca7d5b77ace3eeaec5d0008c6.jpg'" class="user-avatar" />
-            <span class="username">{{ userName }}</span>
-            <el-icon class="arrow-icon">
+            <el-avatar 
+              :size="32" 
+              :src="currentUser.avatar" 
+              :class="['user-avatar', currentUser.id === user1.id ? 'avatar-user1' : 'avatar-user2']"
+            >
+              {{ currentUser.name[0] }}
+            </el-avatar>
+            <span class="username">{{ currentUser.name }}</span>
+            <el-icon class="el-icon--right">
               <ArrowDown />
             </el-icon>
           </div>
           <template #dropdown>
             <el-dropdown-menu>
               <el-dropdown-item command="profile">个人中心</el-dropdown-item>
-              <el-dropdown-item command="logout" type="danger">退出登录</el-dropdown-item>
+              <el-dropdown-item command="settings">系统设置</el-dropdown-item>
+              <el-dropdown-item divided command="logout">退出登录</el-dropdown-item>
             </el-dropdown-menu>
           </template>
         </el-dropdown>
@@ -122,7 +129,7 @@
 
         <!-- 欢迎卡片（加视图切换过渡动画） -->
         <div class="welcome-card">
-          <h2 @click="triggerEasterEgg">欢迎回来，{{ userName }} <span class="heart-trigger">💖</span></h2>
+          <h2 @click="triggerEasterEgg">欢迎回来，{{ currentUser.name }} <span class="heart-trigger">💖</span></h2>
 
           <!-- 视图切换过渡容器 -->
           <transition name="view-fade">
@@ -244,6 +251,7 @@ import {ref, onMounted, onUnmounted, watch, defineComponent, computed} from 'vue
 import { useRouter } from 'vue-router'
 import dayjs from 'dayjs'
 import DianDianDiDi from "@/views/DianDianDiDi.vue";
+import { currentUser, user1, user2 } from '../services/chatManager';
 // 引入Element Plus组件和图标
 import {
   ElContainer, ElHeader, ElAside, ElMain,
@@ -985,6 +993,44 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   gap: 15px;
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  padding: 5px 12px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.4);
+  transition: all 0.3s;
+}
+
+.user-info:hover {
+  background: rgba(255, 255, 255, 0.6);
+}
+
+.user-avatar {
+  border: 2px solid white;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  font-weight: bold;
+}
+
+.avatar-user1 {
+  background-color: #fff0f3;
+  color: #ff80ab;
+}
+
+.avatar-user2 {
+  background-color: #e8f5e9;
+  color: #4caf50;
+}
+
+.user-avatar :deep(img) {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
 }
 
 .theme-toggle-btn {
