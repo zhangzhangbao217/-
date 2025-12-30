@@ -192,12 +192,13 @@
           <div v-if="callType === 'video'" class="video-container">
             <video ref="remoteVideoRef" autoplay playsinline class="remote-video"></video>
             <video ref="localVideoRef" autoplay playsinline muted class="local-video"></video>
+            <div class="video-timer">{{ formatDuration(callDurationSeconds) }}</div>
           </div>
           
           <div v-else class="voice-container">
             <el-avatar :size="120" :src="partnerInfo.avatar" class="call-avatar pulse" />
             <h2 class="call-name">{{ partnerInfo.name }}</h2>
-            <p class="call-timer">{{ formatDuration(callDuration) }}</p>
+            <p class="call-timer">{{ formatDuration(callDurationSeconds) }}</p>
           </div>
 
           <div class="call-controls">
@@ -674,7 +675,8 @@ const goBack = () => {
   padding: 8px 12px;
   background: #f0f2f5;
   border-radius: 8px;
-  max-width: 180px;
+  min-width: 120px;
+  max-width: 200px;
 }
 
 .is-mine .call-log-content {
@@ -1014,6 +1016,19 @@ const goBack = () => {
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
+
+.video-timer {
+  position: absolute;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.5);
+  color: white;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 16px;
+  z-index: 10;
 }
 
 .local-video {

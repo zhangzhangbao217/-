@@ -315,11 +315,12 @@ export const handleHangup = (shouldNotify: any = true) => {
       if (callStatus.value === 'calling') {
         status = 'missed'; // 我拨出的，对方没接
       } else if (callStatus.value === 'receiving') {
-        status = 'declined'; // 对方拨给我的，我没接
+        status = 'declined'; // 对方拨给我的，我点击挂断（拒绝）
       } else if (callStatus.value === 'connected') {
         status = 'completed'; // 通话已完成
       }
       
+      console.log(`发送通话记录: 状态=${status}, 时长=${callDurationSeconds.value}`);
       callLogSender({
         type: 'call_log',
         callType: callType.value,
@@ -357,6 +358,7 @@ export const handleHangup = (shouldNotify: any = true) => {
     console.log('PeerConnection 已关闭');
   }
 
+  // 即使 notify 为 false，也要在本地停止铃声和清理状态
   stopRingtones();
   callStatus.value = 'idle';
   callDurationSeconds.value = 0;
@@ -470,6 +472,8 @@ export const handleSignaling = async (data: any) => {
       break;
 
     case 'hangup':
+      console.log('收到对方挂断信令，当前状态:', callStatus.value);
+      // 收到对方挂断时，我们不需要再发 hangup 给对方了，所以传 false
       handleHangup(false);
       break;
 
