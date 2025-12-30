@@ -22,6 +22,7 @@ let peerConnection: RTCPeerConnection | null = null;
 let pendingCandidates: RTCIceCandidateInit[] = [];
 let callInviteTimer: any = null;
 let callTimeoutTimer: any = null;
+let currentCallId: string | null = null;
 
 const ICE_SERVERS = {
   iceServers: [
@@ -150,6 +151,7 @@ export const startCall = async (type: CallType) => {
 
   callType.value = type;
   callStatus.value = 'calling';
+  currentCallId = `call_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
   createPeerConnection();
 
@@ -160,6 +162,7 @@ export const startCall = async (type: CallType) => {
     type: 'offer',
     offer,
     callType: type,
+    callId: currentCallId,
     timestamp: Date.now()
   };
 
@@ -228,6 +231,7 @@ export const acceptCall = async () => {
 // 挂断
 export const handleHangup = (shouldNotify: any = true) => {
   console.log('正在执行挂断清理...');
+  currentCallId = null;
   
   // 清理所有定时器
   if (callInviteTimer) {
@@ -301,30 +305,24 @@ export const toggleCamera = () => {
 
 // 处理接收到的信令
 export const handleSignaling = async (data: any) => {
-  const { type, offer, answer, candidate, callType: incomingType } = data;
+  const { type, offer, answer, candidate, callType: incomingType, callId } = data;
 
   switch (type) {
     case 'offer':
-      // 如果已经连接成功，说明是由于网络延迟收到的重复 offer，直接忽略，不要发 busy
-      if (callStatus.value === 'connected') {
-        console.log('已在通话中，忽略重发的 offer');
+      // 如果是当前正在进行的通话（同 callId），或者是已经连接成功的通话，直接忽略，不要发 busy
+      if (currentCallId === callId || callStatus.value === 'connected') {
+        if (!currentCallId) currentCallId = callId; // 同步 callId
+        console.log('收到重复或已处理的 offer，忽略');
         return;
       }
 
       if (callStatus.value !== 'idle' && callStatus.value !== 'receiving') {
-        // 只有在真正的忙线状态（比如你正在呼叫别人）时，才发送 busy
-        sendSignalingMessage({ type: 'busy' });
+        console.log('确实忙线中:', callStatus.value);
+        sendSignalingMessage({ type: 'busy', callId });
         return;
       }
       
-      // 如果已经在显示接收界面，且是同一个呼叫的重发，则不重复处理逻辑
-      if (callStatus.value === 'receiving') {
-        const pending = sessionStorage.getItem('pending_offer');
-        if (pending && JSON.stringify(offer) === pending) {
-          return;
-        }
-      }
-
+      currentCallId = callId;
       callType.value = incomingType;
       callStatus.value = 'receiving';
       // 先保存 offer，等接听时再处理
@@ -374,8 +372,11 @@ export const handleSignaling = async (data: any) => {
       break;
 
     case 'busy':
-      alert('对方正忙');
-      handleHangup(false);
+      // 只有当 busy 信号对应的是当前的呼叫 ID 时，才处理挂断
+      if (callId === currentCallId) {
+        alert('对方正忙');
+        handleHangup(false);
+      }
       break;
   }
 };
