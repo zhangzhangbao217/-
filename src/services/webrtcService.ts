@@ -305,8 +305,14 @@ export const handleSignaling = async (data: any) => {
 
   switch (type) {
     case 'offer':
+      // 如果已经连接成功，说明是由于网络延迟收到的重复 offer，直接忽略，不要发 busy
+      if (callStatus.value === 'connected') {
+        console.log('已在通话中，忽略重发的 offer');
+        return;
+      }
+
       if (callStatus.value !== 'idle' && callStatus.value !== 'receiving') {
-        // 忙线中，自动拒绝
+        // 只有在真正的忙线状态（比如你正在呼叫别人）时，才发送 busy
         sendSignalingMessage({ type: 'busy' });
         return;
       }
