@@ -146,7 +146,7 @@
           <el-avatar :size="100" :src="partnerInfo.avatar" class="call-avatar" />
           <h2 class="call-name">{{ partnerInfo.name }}</h2>
           <p class="call-status-text">
-            {{ callStatus === 'calling' ? `正在呼叫对方${callType === 'video' ? '视频' : '语音'}...` : `发来${callType === 'video' ? '视频' : '语音'}通话...` }}
+            {{ callStatus === 'calling' ? (isWaitingForAck ? '正在唤醒对方设备...' : `正在呼叫对方${callType === 'video' ? '视频' : '语音'}...`) : `发来${callType === 'video' ? '视频' : '语音'}通话...` }}
           </p>
           
           <div class="call-actions">
@@ -231,6 +231,7 @@ import {
   handleHangup, 
   isMuted, 
   isCameraOff,
+  isWaitingForAck,
   setSignalingSender,
   toggleMute,
   toggleCamera
@@ -245,10 +246,11 @@ const remoteVideoRef = ref<HTMLVideoElement | null>(null);
 const remoteAudioRef = ref<HTMLAudioElement | null>(null);
 
 // 设置 WebRTC 信令发送器
-setSignalingSender(async (data) => {
+setSignalingSender(async (data, options = { transient: true }) => {
   if (globalConversation.value) {
     const message = new TextMessage(`__SIGNAL__:${JSON.stringify(data)}`);
-    await globalConversation.value.send(message);
+    // 允许通过 options 控制是否为 transient
+    await globalConversation.value.send(message, options);
   }
 });
 

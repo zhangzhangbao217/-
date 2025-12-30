@@ -40,10 +40,16 @@ const ICE_SERVERS = {
   iceCandidatePoolSize: 10,
 };
 
+export const isWaitingForAck = ref(false);
+
 // 发送信令消息
-const sendSignalingMessage = async (data: any) => {
+export const sendSignalingMessage = async (data: any, options: any = { transient: true }) => {
   if (signalingSender) {
-    await signalingSender(data);
+    try {
+      await signalingSender(data, options);
+    } catch (e) {
+      console.error('发送信令异常:', e);
+    }
   }
 };
 
@@ -151,6 +157,7 @@ export const startCall = async (type: CallType) => {
 
   callType.value = type;
   callStatus.value = 'calling';
+  isWaitingForAck.value = true;
   currentCallId = `call_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
   createPeerConnection();
@@ -167,14 +174,15 @@ export const startCall = async (type: CallType) => {
   };
 
   // 发送初始邀请
-  await sendSignalingMessage(signalData);
+  await sendSignalingMessage(signalData, { transient: false });
 
   // 增加心跳重发机制：每 3 秒重发一次邀请，直到对方响应或超时
   let retryCount = 0;
   callInviteTimer = setInterval(async () => {
     if (callStatus.value === 'calling' && retryCount < 10) {
       console.log('重发通话邀请...', retryCount + 1);
-      await sendSignalingMessage(signalData);
+      // 重发可以使用 transient，减少服务器存储压力
+      await sendSignalingMessage(signalData, { transient: true });
       retryCount++;
     } else {
       clearInterval(callInviteTimer);
@@ -277,6 +285,7 @@ export const handleHangup = (shouldNotify: any = true) => {
   }
 
   callStatus.value = 'idle';
+  isWaitingForAck.value = false;
   isMuted.value = false;
   isCameraOff.value = false;
   pendingCandidates = [];
@@ -309,10 +318,12 @@ export const handleSignaling = async (data: any) => {
 
   switch (type) {
     case 'offer':
-      // 如果是当前正在进行的通话（同 callId），或者是已经连接成功的通话，直接忽略，不要发 busy
+      // 如果是当前正在进行的通话（同 callId），或者是已经连接成功的通话，直接忽略
       if (currentCallId === callId || callStatus.value === 'connected') {
         if (!currentCallId) currentCallId = callId; // 同步 callId
-        console.log('收到重复或已处理的 offer，忽略');
+        // 即便是重复的 offer，也回一个 ack，确保对方知道我们收到了
+        sendSignalingMessage({ type: 'signal_ack', callId });
+        console.log('收到重复或已处理的 offer，发送 ACK 并忽略后续处理');
         return;
       }
 
@@ -322,6 +333,9 @@ export const handleSignaling = async (data: any) => {
         return;
       }
       
+      // 收到新呼叫，立即回复 ACK
+      sendSignalingMessage({ type: 'signal_ack', callId });
+      
       currentCallId = callId;
       callType.value = incomingType;
       callStatus.value = 'receiving';
@@ -329,8 +343,17 @@ export const handleSignaling = async (data: any) => {
       sessionStorage.setItem('pending_offer', JSON.stringify(offer));
       break;
 
+    case 'signal_ack':
+      if (callId === currentCallId && callStatus.value === 'calling') {
+        console.log('收到呼叫确认 ACK，对方已收到信号');
+        isWaitingForAck.value = false;
+      }
+      break;
+
     case 'answer':
-      if (peerConnection && callStatus.value === 'calling') {
+      if (peerConnection && (callStatus.value === 'calling' || callStatus.value === 'connected')) {
+        // 收到 Answer 意味着肯定收到信号了
+        isWaitingForAck.value = false;
         // 停止重发邀请和超时计时
         if (callInviteTimer) clearInterval(callInviteTimer);
         if (callTimeoutTimer) clearTimeout(callTimeoutTimer);

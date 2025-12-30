@@ -119,16 +119,41 @@ export const initChat = async (silent = false) => {
     
     // 监听页面可见性变化，回到前台时立即同步（确保只绑定一次）
     if (!(window as any).visibilityListenerBound) {
-      document.addEventListener('visibilitychange', () => {
+      document.addEventListener('visibilitychange', async () => {
         if (document.visibilityState === 'visible') {
-          console.log('页面回到前台，检查连接...');
-          if (!globalIsOnline.value) {
+          console.log('页面回到前台，强制检查并恢复连接...');
+          // 无论 globalIsOnline 状态如何，都进行心跳检查或重连
+          if (globalChatClient.value) {
+            try {
+              // 尝试获取会话，如果失败说明连接已失效
+              await globalChatClient.value.getConversation(CONVERSATION_ID);
+              globalIsOnline.value = true;
+            } catch (e) {
+              console.log('连接已失效，正在重新初始化...');
+              globalIsOnline.value = false;
+              initChat(true);
+            }
+          } else {
             initChat(true);
           }
         }
       });
       (window as any).visibilityListenerBound = true;
     }
+
+    // 监听网络状态变化
+    if (!(window as any).networkListenerBound) {
+      window.addEventListener('online', () => {
+        console.log('网络恢复，正在重新连接聊天...');
+        initChat(true);
+      });
+      window.addEventListener('offline', () => {
+        console.log('网络断开');
+        globalIsOnline.value = false;
+      });
+      (window as any).networkListenerBound = true;
+    }
+
     console.log('全局聊天连接成功');
   } catch (error) {
     console.error('全局聊天初始化失败:', error);
