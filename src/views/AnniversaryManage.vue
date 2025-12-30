@@ -1,10 +1,6 @@
 <!-- src/views/AnniversaryManage.vue -->
 <template>
   <el-container class="manage-container">
-    <!-- 背景爱心装饰 -->
-    <div class="love-bg-decoration"></div>
-
-    <!-- 顶部导航栏 -->
     <el-header class="manage-header">
       <div class="header-left">
         <el-icon class="back-btn" @click="goBack">
@@ -15,20 +11,18 @@
     </el-header>
 
     <el-main class="manage-main">
-      <!-- 页面标题 -->
       <div class="page-title-bar">
         <h2>我的待办纪念日 💖</h2>
         <p>共 {{ anniversaryList.length }} 个待办</p>
       </div>
 
-      <!-- 纪念日列表 -->
       <div class="anniversary-list">
         <el-empty v-if="anniversaryList.length === 0" description="暂无待办纪念日" />
         <el-card
             class="anniversary-item"
             v-for="(item, index) in anniversaryList"
             :key="index"
-            hoverable
+            shadow="hover"
         >
           <div class="item-content">
             <div class="item-left">
@@ -37,8 +31,9 @@
             </div>
             <div class="item-right">
               <el-button
-                  type="text"
-                  icon="el-icon-delete"
+                  type="danger"
+                  link
+                  :icon="Delete"
                   class="delete-btn"
                   @click="handleDelete(index)"
               >
@@ -46,9 +41,9 @@
               </el-button>
             </div>
           </div>
-          <!-- 动态读秒的倒计时（实时更新） -->
           <div class="countdown">
-            距离还有：{{ item.countdown }}
+            <el-icon class="time-icon"><Timer /></el-icon>
+            距离还有：<span class="time-value">{{ item.countdown }}</span>
           </div>
         </el-card>
       </div>
@@ -60,9 +55,8 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import dayjs from 'dayjs'
-// 引入Element Plus组件和图标
-import { ElContainer, ElHeader, ElMain, ElCard, ElButton, ElEmpty } from 'element-plus'
-import { ArrowLeft, Delete } from '@element-plus/icons-vue'
+import { ElContainer, ElHeader, ElMain, ElCard, ElButton, ElEmpty, ElIcon } from 'element-plus'
+import { ArrowLeft, Delete, Timer } from '@element-plus/icons-vue'
 
 // 接收从Home页传递的待办纪念日数据
 const props = defineProps({
@@ -141,157 +135,218 @@ onUnmounted(() => {
 
 <style scoped>
 .manage-container {
-  height: 100vh;
-  background: linear-gradient(120deg, #fff9fb, #ffe6ef);
+  min-height: 100vh;
+  background: transparent;
   position: relative;
-  overflow: hidden;
-}
-
-/* 背景爱心装饰（和Home页一致） */
-.love-bg-decoration {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' fill='%23ffccd5' opacity='0.1'%3E%3Cpath d='M10 15C8.343 15 7 13.657 7 12c0-2 3-4 3-4s3 2 3 4c0 1.657-1.343 3-3 3zm0-10a2 2 0 1 0 0-4 2 2 0 0 0 0 4z'/%3E%3C/svg%3E");
-  background-repeat: repeat;
-  animation: floatBg 20s linear infinite;
-  z-index: 0;
-}
-@keyframes floatBg {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-20px); }
+  overflow-x: hidden;
 }
 
 /* 顶部导航 */
 .manage-header {
-  background-color: rgba(255, 255, 255, 0.8);
-  backdrop-filter: blur(8px);
-  box-shadow: 0 4px 12px rgba(255, 192, 203, 0.2);
+  background: rgba(255, 255, 255, 0.6) !important;
+  backdrop-filter: blur(15px) !important;
+  -webkit-backdrop-filter: blur(15px) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.4) !important;
   display: flex;
   align-items: center;
   padding: 0 20px;
-  position: relative;
-  z-index: 1;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  height: 64px !important;
+}
+
+.back-btn {
+  cursor: pointer;
+  font-size: 20px;
+  color: #ff6b81;
+  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  padding: 8px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.5);
+  margin-right: 8px;
+}
+
+.back-btn:hover {
+  color: #ff4757;
+  transform: scale(1.1) rotate(-10deg);
+  background: white;
+  box-shadow: 0 4px 12px rgba(255, 107, 129, 0.2);
+}
+
+.page-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #ff4757;
+  letter-spacing: 1px;
+}
+
+/* 主内容区 */
+.manage-main {
+  padding: 40px 20px;
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.page-title-bar {
+  text-align: center;
+  margin-bottom: 40px;
+  animation: fadeInDown 0.8s ease-out;
+}
+
+@keyframes fadeInDown {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.page-title-bar h2 {
+  color: #ff4757;
+  font-size: 2.2rem;
+  margin-bottom: 12px;
+  font-weight: 700;
+  text-shadow: 2px 2px 4px rgba(255, 71, 87, 0.1);
+}
+
+.page-title-bar p {
+  color: #ff7f9d;
+  font-size: 1.1rem;
+  opacity: 0.9;
+}
+
+/* 纪念日列表 */
+.anniversary-list {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.anniversary-item {
+  background: rgba(255, 255, 255, 0.7) !important;
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.6) !important;
+  border-radius: 24px !important;
+  box-shadow: 0 10px 30px rgba(255, 182, 193, 0.15) !important;
+  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) !important;
+  overflow: hidden;
+  animation: fadeInUp 0.6s ease-out both;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.anniversary-item:hover {
+  transform: translateY(-8px) scale(1.01) !important;
+  background: rgba(255, 255, 255, 0.85) !important;
+  box-shadow: 0 15px 40px rgba(255, 107, 129, 0.25) !important;
+}
+
+:deep(.el-card__body) {
+  padding: 25px !important;
+}
+
+.item-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.item-name {
+  font-size: 1.4rem;
+  color: #ff4757;
+  font-weight: 700;
+  display: block;
+  margin-bottom: 6px;
+}
+
+.item-date {
+  color: #ff8fa3;
+  font-size: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.delete-btn {
+  font-size: 1rem !important;
+  padding: 8px 16px !important;
+  border-radius: 12px !important;
+  transition: all 0.3s !important;
+}
+
+.delete-btn:hover {
+  background: rgba(255, 71, 87, 0.1) !important;
+  transform: scale(1.05);
+}
+
+.countdown {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-top: 20px;
+  border-top: 1px dashed rgba(255, 107, 129, 0.2);
+  color: #2a9d8f;
+  font-weight: 600;
+  font-size: 1.1rem;
+}
+
+.time-icon {
+  font-size: 1.2rem;
+  color: #2a9d8f;
+}
+
+.time-value {
+  color: #264653;
+  font-family: 'Courier New', Courier, monospace;
+  background: rgba(42, 157, 143, 0.1);
+  padding: 4px 12px;
+  border-radius: 8px;
+  letter-spacing: 1px;
 }
 
 @media (max-width: 768px) {
+  .manage-main {
+    padding: 20px 15px;
+  }
+  
   .page-title-bar h2 {
-    font-size: 1.4rem;
+    font-size: 1.8rem;
   }
   
   .item-content {
     flex-direction: column;
     align-items: flex-start;
-    gap: 10px;
+    gap: 15px;
   }
   
   .item-right {
     width: 100%;
-    text-align: right;
+    display: flex;
+    justify-content: flex-end;
   }
   
   .item-name {
-    font-size: 1.1rem;
+    font-size: 1.2rem;
   }
   
-  .item-date {
-    font-size: 0.9rem;
-  }
-
   .countdown {
-    font-size: 0.9rem;
-    padding-top: 10px;
-    border-top: 1px dashed #ffd1dc;
+    font-size: 1rem;
+    flex-wrap: wrap;
   }
-}
-
-.back-btn {
-  cursor: pointer;
-  font-size: 18px;
-  color: #e63946;
-  transition: color 0.3s;
-}
-.back-btn:hover {
-  color: #ff6b81;
-}
-.page-title {
-  font-size: 16px;
-  font-weight: 500;
-  color: #e63946;
-  margin-left: 12px;
-  text-shadow: 0 1px 2px rgba(230, 57, 70, 0.2);
-}
-
-/* 主内容区 */
-.manage-main {
-  padding: 30px 20px;
-  position: relative;
-  z-index: 1;
-}
-.page-title-bar {
-  text-align: center;
-  margin-bottom: 30px;
-}
-.page-title-bar h2 {
-  color: #e63946;
-  font-size: 1.8rem;
-  text-shadow: 0 2px 4px rgba(230, 57, 70, 0.1);
-}
-.page-title-bar p {
-  color: #6d6875;
-  margin-top: 8px;
-}
-
-/* 纪念日列表 */
-.anniversary-list {
-  max-width: 800px;
-  margin: 0 auto;
-}
-.anniversary-item {
-  background-color: rgba(255, 255, 255, 0.9);
-  backdrop-filter: blur(8px);
-  border: 1px solid rgba(255, 182, 193, 0.3);
-  border-radius: 12px;
-  box-shadow: 0 4px 12px rgba(255, 192, 203, 0.1);
-  margin-bottom: 20px;
-  transition: all 0.4s ease;
-}
-.anniversary-item:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 8px 18px rgba(255, 192, 203, 0.2);
-  background-color: #fff;
-}
-.item-content {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 12px;
-}
-.item-name {
-  font-size: 1.2rem;
-  color: #e63946;
-  font-weight: 600;
-}
-.item-date {
-  color: #6d6875;
-  margin-top: 4px;
-  display: block;
-}
-.delete-btn {
-  color: #ff6b81;
-  transition: color 0.3s;
-}
-.delete-btn:hover {
-  color: #e63946;
-}
-.countdown {
-  color: #2a9d8f;
-  font-weight: 500;
-  margin-top: 8px;
-  border-top: 1px dashed rgba(255, 182, 193, 0.3);
-  padding-top: 12px;
-  font-size: 1rem;
 }
 </style>

@@ -1,9 +1,6 @@
 <!-- Home.vue -->
 <template>
   <el-container class="home-container">
-    <!-- 背景爱心装饰 -->
-    <div class="love-bg-decoration"></div>
-
     <!-- 顶部导航栏 -->
     <el-header class="home-header">
       <div class="header-left">
@@ -13,6 +10,12 @@
         <span class="app-title">张张包和小黄包的恋爱窝</span>
       </div>
       <div class="header-right">
+        <el-button 
+          circle 
+          class="theme-toggle-btn" 
+          @click="toggleDarkMode"
+          :icon="isDarkMode ? Sunny : Moon"
+        />
         <el-dropdown @command="handleDropdownCommand">
           <div class="user-info">
             <el-avatar icon="el-icon-user" class="user-avatar" />
@@ -115,7 +118,7 @@
 
         <!-- 欢迎卡片（加视图切换过渡动画） -->
         <div class="welcome-card">
-          <h2>欢迎回来，{{ userName }} 💖</h2>
+          <h2 @click="triggerEasterEgg">欢迎回来，{{ userName }} <span class="heart-trigger">💖</span></h2>
 
           <!-- 视图切换过渡容器 -->
           <transition name="view-fade">
@@ -124,7 +127,7 @@
               <template v-if="currentView === 'loveDuration'">
                 <p>张张包和张张小黄包：</p>
                 <p class="time-text">
-                  {{ loveDuration.days }}天 {{ formatTime(loveDuration.hours) }}时 {{ formatTime(loveDuration.minutes) }}分 {{ formatTime(loveDuration.seconds) }}秒
+                  {{ displayLoveDuration.days }}天 {{ formatTime(displayLoveDuration.hours) }}时 {{ formatTime(displayLoveDuration.minutes) }}分 {{ formatTime(displayLoveDuration.seconds) }}秒
                 </p>
               </template>
 
@@ -132,7 +135,7 @@
               <template v-else>
                 <p>距离 <span class="anniversary-name">{{ anniversaryTarget.name }}</span> 还有：</p>
                 <p class="time-text">
-                  {{ anniversaryCountdown.days }}天 {{ formatTime(anniversaryCountdown.hours) }}时 {{ formatTime(anniversaryCountdown.minutes) }}分 {{ formatTime(anniversaryCountdown.seconds) }}秒
+                  {{ displayAnniversaryCountdown.days }}天 {{ formatTime(displayAnniversaryCountdown.hours) }}时 {{ formatTime(displayAnniversaryCountdown.minutes) }}分 {{ formatTime(displayAnniversaryCountdown.seconds) }}秒
                 </p>
               </template>
             </div>
@@ -152,10 +155,10 @@
                 <div key="stats-value">
                   <span class="stats-value">
                     <template v-if="currentView === 'loveDuration'">
-                      {{ loveDuration.days }}天 {{ formatTime(loveDuration.hours) }}:{{ formatTime(loveDuration.minutes) }}:{{ formatTime(loveDuration.seconds) }}
+                      {{ displayLoveDuration.days }}天 {{ formatTime(displayLoveDuration.hours) }}:{{ formatTime(displayLoveDuration.minutes) }}:{{ formatTime(displayLoveDuration.seconds) }}
                     </template>
                     <template v-else>
-                      {{ anniversaryCountdown.days }}天 {{ formatTime(anniversaryCountdown.hours) }}:{{ formatTime(anniversaryCountdown.minutes) }}:{{ formatTime(anniversaryCountdown.seconds) }}
+                      {{ displayAnniversaryCountdown.days }}天 {{ formatTime(displayAnniversaryCountdown.hours) }}:{{ formatTime(displayAnniversaryCountdown.minutes) }}:{{ formatTime(displayAnniversaryCountdown.seconds) }}
                     </template>
                   </span>
                 </div>
@@ -176,7 +179,34 @@
             </div>
           </el-card>
         </div>
-        <!-- 新增：浪漫心形进度条 -->
+
+        <!-- 新增：爱情树养成区域 -->
+        <div class="love-tree-section">
+          <div class="tree-header">
+            <h3>我们的爱情树 🌳</h3>
+            <p>已茁壮成长 {{ loveTreeLevel }} 天</p>
+          </div>
+          <div class="tree-container">
+            <div class="tree-visual">
+              <div class="tree-trunk"></div>
+              <div class="tree-leaves" :style="{ transform: `scale(${0.5 + loveTreeProgress * 0.5})` }">
+                <div v-for="n in 5" :key="n" class="leaf-cluster"></div>
+                <div v-for="n in 8" :key="'heart-'+n" class="tree-heart">❤️</div>
+              </div>
+            </div>
+            <div class="tree-info">
+              <div class="progress-bar-container">
+                <div class="progress-bar-fill" :style="{ width: (loveTreeProgress * 100) + '%' }"></div>
+              </div>
+              <p class="growth-tip">{{ growthTip }}</p>
+              <el-button type="danger" round size="large" class="water-btn" @click="waterTree" :disabled="isWatering">
+                <el-icon><ColdDrink /></el-icon> 浇灌爱意
+              </el-button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 浪漫心形进度条 -->
         <div class="romantic-heart-progress">
           <div class="heart-container">
             <div class="heart-bg"></div>
@@ -184,13 +214,23 @@
           </div>
           <p class="progress-text">我们的爱意持续升温中...</p>
         </div>
+
+        <!-- 新增：今日情话页脚 -->
+        <div class="home-footer-quote" @click="refreshQuote">
+          <div class="quote-content">
+            <el-icon class="quote-icon-left"><ChatDotRound /></el-icon>
+            <span class="quote-text">{{ currentQuote }}</span>
+            <el-icon class="quote-icon-right"><ChatDotRound /></el-icon>
+          </div>
+          <p class="quote-tip">点击刷新情话 ✨</p>
+        </div>
       </el-main>
     </el-container>
   </el-container>
 </template>
 
 <script setup>
-import {ref, onMounted, onUnmounted, watch, defineComponent} from 'vue'
+import {ref, onMounted, onUnmounted, watch, defineComponent, computed} from 'vue'
 import { useRouter } from 'vue-router'
 import dayjs from 'dayjs'
 import DianDianDiDi from "@/views/DianDianDiDi.vue";
@@ -198,19 +238,64 @@ import DianDianDiDi from "@/views/DianDianDiDi.vue";
 import {
   ElContainer, ElHeader, ElAside, ElMain,
   ElMenu, ElMenuItem, ElDropdown, ElDropdownMenu,
-  ElDropdownItem, ElAvatar, ElCard, ElButton
+  ElDropdownItem, ElAvatar, ElCard, ElButton, ElMessage, ElIcon
 } from 'element-plus'
-import {Menu, ArrowDown, House, Calendar, Message, Picture, Document, List, Stamp} from '@element-plus/icons-vue'
+import {Menu, ArrowDown, House, Calendar, Message, Picture, Document, List, Stamp, ColdDrink, ChatDotRound, Moon, Sunny} from '@element-plus/icons-vue'
 
 defineComponent({
   name: 'Home',
   components: {
-    // 注册 DianDianDiDi 组件（如果需要直接渲染）
     DianDianDiDi,
   },
 });
 
 const router = useRouter()
+
+// 爱情树相关逻辑
+const loveTreeLevel = ref(0)
+const loveTreeProgress = ref(0.2)
+const isWatering = ref(false)
+const growthTip = ref('点击按钮，用爱意浇灌我们的爱情树吧～')
+
+const waterTree = () => {
+  if (isWatering.value) return
+  isWatering.value = true
+  growthTip.value = '正在浇灌中，爱意满满... ✨'
+  
+  setTimeout(() => {
+    loveTreeProgress.value = Math.min(1, loveTreeProgress.value + 0.05)
+    isWatering.value = false
+    growthTip.value = '浇灌成功！爱情树又长大了一点点 🌱'
+    ElMessage({
+      message: '爱意浇灌成功！✨',
+      type: 'success',
+      duration: 2000,
+      offset: 100
+    })
+    localStorage.setItem('loveTreeProgress', loveTreeProgress.value.toString())
+  }, 1500)
+}
+
+// 今日情话逻辑
+const quotes = [
+  "我喜欢你，胜过削好的水果，周末的睡懒觉，和冬天的暖气。",
+  "遇见你之后，我的伟大抱负和一腔热血，都变成了一心只想对你好。",
+  "我并没有那种把人生过得极其精彩的本事，但我希望能和你一起把日子过得有滋有味。",
+  "这世间最温柔的，大概就是你眉眼间的笑意，和晚风里的私语。",
+  "你是我这一生，等了半世的未完待续。",
+  "我也说不清楚你哪里好，但就是谁都替代不了。",
+  "这漫长的一生，我想和你慢慢走，慢慢看，慢慢变老。",
+  "我想和你分享我的每一个黄昏，和每一个有你的清晨。"
+]
+const currentQuote = ref(quotes[Math.floor(Math.random() * quotes.length)])
+const refreshQuote = () => {
+  const old = currentQuote.value
+  let next = old
+  while(next === old) {
+    next = quotes[Math.floor(Math.random() * quotes.length)]
+  }
+  currentQuote.value = next
+}
 
 // 移动端自动折叠侧边栏
 const closeSidebarOnMobile = () => {
@@ -225,7 +310,6 @@ const goToAnniversaryManage = () => {
   router.push({
     name: 'AnniversaryManage',
     query: {
-      // 将待办纪念日数组转为JSON字符串传递
       anniversaries: JSON.stringify(futureAnniversaries.value)
     }
   })
@@ -261,14 +345,88 @@ const loveStartDate = ref('2019-12-29 13:14:00')
 
 // 视图切换状态
 const currentView = ref('loveDuration')
-// 已恋爱时长数据
+// 已恋爱时长数据 (实际数据)
 const loveDuration = ref({ days: 0, hours: 0, minutes: 0, seconds: 0 })
+// 显示用时长数据 (用于滚动效果)
+const displayLoveDuration = ref({ days: 0, hours: 0, minutes: 0, seconds: 0 })
+
+// 滚动数字效果
+const animateNumbers = (targetObj, displayObj) => {
+  const keys = Object.keys(targetObj)
+  keys.forEach(key => {
+    const start = displayObj[key]
+    const end = targetObj[key]
+    if (start === end) return
+    
+    // 如果差距太大（比如刚进入页面），使用动画；如果差距小（每秒更新），直接赋值或微小步进
+    if (Math.abs(end - start) > 5) {
+      let current = start
+      const step = Math.ceil(Math.abs(end - start) / 20)
+      const timer = setInterval(() => {
+        if (current < end) {
+          current = Math.min(end, current + step)
+        } else {
+          current = Math.max(end, current - step)
+        }
+        displayObj[key] = current
+        if (current === end) clearInterval(timer)
+      }, 30)
+    } else {
+      displayObj[key] = end
+    }
+  })
+}
+
 // 纪念日相关（动态生成）
 const anniversaryTarget = ref({ name: '', date: '' }) // 当前倒计时的纪念日
 const anniversaryCountdown = ref({ days: 0, hours: 0, minutes: 0, seconds: 0 })
+const displayAnniversaryCountdown = ref({ days: 0, hours: 0, minutes: 0, seconds: 0 })
 const futureAnniversaries = ref([]) // 所有未来纪念日列表
 // 侧边栏状态
 const isSidebarCollapse = ref(window.innerWidth <= 768)
+
+// 暗黑模式逻辑
+const isDarkMode = ref(localStorage.getItem('theme') === 'dark')
+const toggleDarkMode = () => {
+  isDarkMode.value = !isDarkMode.value
+  localStorage.setItem('theme', isDarkMode.value ? 'dark' : 'light')
+  updateTheme()
+}
+const updateTheme = () => {
+  if (isDarkMode.value) {
+    document.documentElement.classList.add('dark-mode')
+  } else {
+    document.documentElement.classList.remove('dark-mode')
+  }
+}
+
+// 惊喜彩蛋逻辑
+const clickCount = ref(0)
+const lastClickTime = ref(0)
+const triggerEasterEgg = () => {
+  const now = Date.now()
+  if (now - lastClickTime.value > 1000) {
+    clickCount.value = 1
+  } else {
+    clickCount.value++
+  }
+  lastClickTime.value = now
+
+  if (clickCount.value === 5) {
+    clickCount.value = 0
+    ElMessage({
+      message: '🎉 恭喜触发隐藏彩蛋！我永远爱你！💕',
+      type: 'success',
+      duration: 5000,
+      showClose: true,
+      center: true,
+      offset: 200
+    })
+    // 触发全局满屏爱心效果（通过 App.vue 监听或简单在此触发一些动画）
+    const event = new CustomEvent('easter-egg-triggered')
+    window.dispatchEvent(event)
+  }
+}
 
 // 监听窗口大小变化
 onMounted(() => {
@@ -384,8 +542,10 @@ const calculateAnniversaryCountdown = () => {
 const calculateTime = () => {
   if (currentView.value === 'loveDuration') {
     calculateLoveDuration()
+    animateNumbers(loveDuration.value, displayLoveDuration.value)
   } else {
     calculateAnniversaryCountdown()
+    animateNumbers(anniversaryCountdown.value, displayAnniversaryCountdown.value)
   }
 }
 
@@ -401,6 +561,12 @@ const toggleView = (viewType) => {
 // 启动定时器（每秒更新时间）
 const startTimer = () => {
   calculateTime() // 初始化计算
+  // 首次进入时，确保 display 数据从 0 滚动到当前值
+  animateNumbers(loveDuration.value, displayLoveDuration.value)
+  if (anniversaryTarget.value.date) {
+    animateNumbers(anniversaryCountdown.value, displayAnniversaryCountdown.value)
+  }
+  
   timeTimer = setInterval(calculateTime, 1000) // 每秒刷新
 }
 
@@ -424,8 +590,19 @@ watch(currentView, () => {
 
 // 生命周期：页面挂载时初始化
 onMounted(() => {
+  updateTheme() // 初始化主题
   setRecentAnniversary() // 生成纪念日列表
   startTimer() // 启动时间更新
+  
+  // 初始化爱情树数据
+  const start = dayjs(loveStartDate.value)
+  const now = dayjs()
+  loveTreeLevel.value = now.diff(start, 'day')
+  
+  const savedProgress = localStorage.getItem('loveTreeProgress')
+  if (savedProgress) {
+    loveTreeProgress.value = parseFloat(savedProgress)
+  }
 })
 
 // 生命周期：页面卸载时清除定时器（防止内存泄漏）
@@ -435,21 +612,239 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
+/* 爱情树养成区域样式 */
+.love-tree-section {
+  background: rgba(255, 255, 255, 0.5);
+  backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  border-radius: 30px;
+  padding: 30px;
+  margin-bottom: 35px;
+  box-shadow: 0 15px 45px rgba(255, 182, 193, 0.2);
+}
+
+.tree-header {
+  text-align: center;
+  margin-bottom: 30px;
+}
+
+.tree-header h3 {
+  color: #e63946;
+  font-size: 22px;
+  margin-bottom: 8px;
+  font-weight: 700;
+}
+
+.tree-header p {
+  color: #6d6875;
+  font-size: 14px;
+}
+
+.tree-container {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  flex-wrap: wrap;
+  gap: 30px;
+}
+
+.tree-visual {
+  position: relative;
+  width: 200px;
+  height: 250px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.tree-trunk {
+  width: 30px;
+  height: 100px;
+  background: linear-gradient(to right, #8d6e63, #5d4037);
+  border-radius: 5px 5px 0 0;
+  position: relative;
+  z-index: 1;
+}
+
+.tree-leaves {
+  position: absolute;
+  bottom: 80px;
+  width: 180px;
+  height: 180px;
+  transition: transform 1s cubic-bezier(0.34, 1.56, 0.64, 1);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.leaf-cluster {
+  position: absolute;
+  width: 100px;
+  height: 100px;
+  background: rgba(129, 199, 132, 0.8);
+  border-radius: 50%;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+}
+
+.leaf-cluster:nth-child(1) { top: 0; left: 40px; }
+.leaf-cluster:nth-child(2) { top: 40px; left: 0; background: rgba(102, 187, 106, 0.85); }
+.leaf-cluster:nth-child(3) { top: 40px; right: 0; background: rgba(102, 187, 106, 0.85); }
+.leaf-cluster:nth-child(4) { bottom: 0; left: 20px; background: rgba(76, 175, 80, 0.9); }
+.leaf-cluster:nth-child(5) { bottom: 0; right: 20px; background: rgba(76, 175, 80, 0.9); }
+
+.tree-heart {
+  position: absolute;
+  font-size: 20px;
+  animation: heartPulse 2s infinite ease-in-out;
+}
+
+.tree-heart:nth-child(6) { top: 20px; left: 80px; animation-delay: 0s; }
+.tree-heart:nth-child(7) { top: 60px; left: 30px; animation-delay: 0.3s; }
+.tree-heart:nth-child(8) { top: 60px; right: 30px; animation-delay: 0.6s; }
+.tree-heart:nth-child(9) { bottom: 40px; left: 50px; animation-delay: 0.9s; }
+.tree-heart:nth-child(10) { bottom: 40px; right: 50px; animation-delay: 1.2s; }
+.tree-heart:nth-child(11) { top: 90px; left: 85px; animation-delay: 1.5s; }
+.tree-heart:nth-child(12) { top: 10px; left: 40px; animation-delay: 1.8s; }
+.tree-heart:nth-child(13) { top: 110px; right: 45px; animation-delay: 2.1s; }
+
+@keyframes heartPulse {
+  0%, 100% { transform: scale(1); opacity: 0.8; }
+  50% { transform: scale(1.3); opacity: 1; text-shadow: 0 0 10px rgba(230, 57, 70, 0.5); }
+}
+
+.heart-trigger {
+  cursor: pointer;
+  display: inline-block;
+  transition: transform 0.3s;
+}
+
+.heart-trigger:active {
+  transform: scale(1.5);
+}
+
+.home-footer-quote {
+  margin-top: 40px;
+  padding: 25px;
+  background: rgba(255, 255, 255, 0.4);
+  backdrop-filter: blur(10px);
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.3s;
+  animation: fadeInUp 1s ease-out;
+}
+
+.home-footer-quote:hover {
+  background: rgba(255, 255, 255, 0.6);
+  transform: translateY(-5px);
+  box-shadow: 0 10px 25px rgba(255, 182, 193, 0.2);
+}
+
+.quote-content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 15px;
+  margin-bottom: 8px;
+}
+
+.quote-text {
+  font-size: 16px;
+  color: #e63946;
+  font-style: italic;
+  font-weight: 500;
+  line-height: 1.6;
+}
+
+.quote-icon-left, .quote-icon-right {
+  font-size: 20px;
+  color: rgba(230, 57, 70, 0.3);
+}
+
+.quote-tip {
+  font-size: 12px;
+  color: #9e9e9e;
+  margin: 0;
+}
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.tree-info {
+  flex: 1;
+  min-width: 250px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  align-items: center;
+}
+
+.progress-bar-container {
+  width: 100%;
+  height: 16px;
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 8px;
+  overflow: hidden;
+  position: relative;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  background: linear-gradient(to right, #81c784, #4caf50);
+  border-radius: 8px;
+  transition: width 1s cubic-bezier(0.34, 1.56, 0.64, 1);
+  box-shadow: 0 0 10px rgba(76, 175, 80, 0.3);
+}
+
+.growth-tip {
+  color: #6d6875;
+  font-size: 15px;
+  font-style: italic;
+  text-align: center;
+}
+
+.water-btn {
+  padding: 15px 40px !important;
+  font-size: 18px !important;
+  font-weight: 700 !important;
+  box-shadow: 0 10px 25px rgba(230, 57, 70, 0.3) !important;
+  transition: all 0.3s !important;
+}
+
+.water-btn:not(:disabled):hover {
+  transform: translateY(-5px) scale(1.05);
+  box-shadow: 0 15px 35px rgba(230, 57, 70, 0.4) !important;
+}
+
+.water-btn:disabled {
+  background: #ffcdd2 !important;
+  border-color: #ffcdd2 !important;
+}
+
 /* 浪漫心形进度条样式 */
 .romantic-heart-progress {
   margin-top: 50px;
   text-align: center;
   position: relative;
   z-index: 1;
+  padding: 30px;
+  background: rgba(255, 255, 255, 0.4);
+  backdrop-filter: blur(10px);
+  border-radius: 30px;
+  border: 1px solid rgba(255, 255, 255, 0.4);
 }
 .heart-container {
   position: relative;
   width: 120px;
   height: 100px;
   margin: 0 auto;
-  cursor: pointer; /* 鼠标指针变手型 */
+  cursor: pointer;
 }
-/* 心形基础形状（浅粉色背景） */
 .heart-bg, .heart-fill {
   position: absolute;
   width: 120px;
@@ -465,7 +860,6 @@ onUnmounted(() => {
   height: 100px;
   border-radius: 50px 50px 0 0;
 }
-/* 浅粉色背景心形 */
 .heart-bg::before, .heart-bg::after {
   background-color: #ffccd5;
 }
@@ -479,13 +873,12 @@ onUnmounted(() => {
   transform: rotate(45deg);
   transform-origin: 100% 100%;
 }
-/* 深粉色填充心形（进度动画） */
 .heart-fill {
-  transform: scaleX(0); /* 初始进度0 */
-  transform-origin: left center; /* 从左侧开始填充 */
-  animation: heartProgress 10s linear infinite; /* 默认10秒填满，循环 */
+  transform: scaleX(0);
+  transform-origin: left center;
+  animation: heartProgress 10s linear infinite;
   overflow: hidden;
-  transition: animation-duration 0.3s ease; /* 动画时长过渡，更丝滑 */
+  transition: animation-duration 0.3s ease;
 }
 .heart-fill::before, .heart-fill::after {
   background-color: #e63946;
@@ -500,16 +893,13 @@ onUnmounted(() => {
   transform: rotate(45deg);
   transform-origin: 100% 100%;
 }
-/* 进度填充动画 */
 @keyframes heartProgress {
-  0% { transform: scaleX(0); }   /* 进度0% */
-  100% { transform: scaleX(1); } /* 进度100% */
+  0% { transform: scaleX(0); }
+  100% { transform: scaleX(1); }
 }
-/* 新增：鼠标悬浮时加速填充 */
 .heart-container:hover .heart-fill {
-  animation: heartProgress 3s linear infinite; /* 悬浮时3秒填满 */
+  animation: heartProgress 3s linear infinite;
 }
-/* 进度文字（悬浮时变色） */
 .progress-text {
   color: #6d6875;
   margin-top: 15px;
@@ -518,100 +908,254 @@ onUnmounted(() => {
   transition: color 0.3s ease;
 }
 .heart-container:hover + .progress-text {
-  color: #e63946; /* 悬浮时文字变深粉色 */
+  color: #e63946;
 }
+
 /* 页面整体浪漫背景 */
 .home-container {
   min-height: 100vh;
-  background: linear-gradient(120deg, #fff9fb, #ffe6ef);
+  background: transparent;
   position: relative;
   overflow-x: hidden;
 }
 
-/* 背景爱心纹理+缓慢浮动 */
-.love-bg-decoration {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' fill='%23ffccd5' opacity='0.1'%3E%3Cpath d='M10 15C8.343 15 7 13.657 7 12c0-2 3-4 3-4s3 2 3 4c0 1.657-1.343 3-3 3zm0-10a2 2 0 1 0 0-4 2 2 0 0 0 0 4z'/%3E%3C/svg%3E");
-  background-repeat: repeat;
-  animation: floatBg 20s linear infinite;
-  z-index: 0;
-}
-@keyframes floatBg {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-20px); }
-}
-
 /* 顶部导航样式 */
 .home-header {
-  background-color: rgba(255, 255, 255, 0.8);
-  backdrop-filter: blur(8px);
-  box-shadow: 0 4px 12px rgba(255, 192, 203, 0.2);
+  background-color: rgba(255, 255, 255, 0.6);
+  backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px);
+  box-shadow: 0 4px 20px rgba(255, 182, 193, 0.2);
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0 20px;
+  padding: 0 24px;
   position: relative;
-  z-index: 1;
+  z-index: 1002;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.5);
 }
+
 .header-left {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 16px;
 }
+
 .menu-toggle {
   cursor: pointer;
-  font-size: 18px;
+  font-size: 20px;
   color: #e63946;
-  transition: color 0.3s;
+  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  padding: 10px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.4);
 }
+
 .menu-toggle:hover {
-  color: #ff6b81;
+  background-color: rgba(230, 57, 70, 0.15);
+  transform: rotate(90deg) scale(1.1);
 }
+
 .app-title {
-  font-size: 16px;
-  font-weight: 500;
+  font-size: 20px;
+  font-weight: 700;
   color: #e63946;
-  text-shadow: 0 1px 2px rgba(230, 57, 70, 0.2);
+  letter-spacing: 1.5px;
+  background: linear-gradient(45deg, #e63946, #ff8fa3);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-shadow: 0 4px 8px rgba(230, 57, 70, 0.1);
 }
+
 .header-right {
   display: flex;
   align-items: center;
-}
-.user-info {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  cursor: pointer;
-  transition: transform 0.3s;
-}
-.user-info:hover {
-  transform: scale(1.05);
-}
-.user-avatar {
-  background-color: #ffd1dc;
-  border: 2px solid #ffb6c1;
-}
-.username {
-  color: #333;
-  font-weight: 500;
-}
-.arrow-icon {
-  font-size: 14px;
-  color: #999;
+  gap: 15px;
 }
 
-/* 侧边栏样式+hover动画 */
+.theme-toggle-btn {
+  font-size: 20px !important;
+  border: none !important;
+  background: rgba(255, 255, 255, 0.5) !important;
+  color: #ff4757 !important;
+  transition: all 0.3s !important;
+}
+
+.theme-toggle-btn:hover {
+  transform: rotate(30deg) scale(1.1);
+  background: white !important;
+}
+
+/* 侧边栏样式 */
 .home-aside {
-  background-color: rgba(255, 245, 247, 0.9);
-  backdrop-filter: blur(8px);
-  box-shadow: 2px 0 12px rgba(255, 192, 203, 0.1);
-  transition: all 0.3s;
+  background-color: rgba(255, 255, 255, 0.3);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-right: 1px solid rgba(255, 255, 255, 0.4);
+  box-shadow: 10px 0 30px rgba(255, 182, 193, 0.1);
+  transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
   z-index: 10;
+}
+
+.aside-menu {
+  border-right: none !important;
+  background-color: transparent !important;
+  padding-top: 20px;
+}
+
+:deep(.el-menu-item) {
+  margin: 10px 16px;
+  border-radius: 16px;
+  height: 56px;
+  line-height: 56px;
+  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  color: #6d6875 !important;
+}
+
+:deep(.el-menu-item:hover) {
+  background-color: rgba(230, 57, 70, 0.1) !important;
+  transform: translateX(8px) scale(1.02);
+  color: #e63946 !important;
+}
+
+:deep(.el-menu-item.is-active) {
+  background: linear-gradient(135deg, rgba(230, 57, 70, 0.15), rgba(255, 143, 163, 0.15)) !important;
+  color: #e63946 !important;
+  font-weight: 700;
+  box-shadow: 0 8px 20px rgba(230, 57, 70, 0.15);
+}
+
+:deep(.el-menu-item .el-icon) {
+  font-size: 20px;
+  margin-right: 12px;
+  transition: all 0.4s;
+}
+
+:deep(.el-menu-item:hover .el-icon) {
+  transform: scale(1.2);
+  color: #e63946;
+}
+
+/* 欢迎卡片优化 */
+.welcome-card {
+  background: rgba(255, 255, 255, 0.55);
+  backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  border-radius: 30px;
+  padding: 40px;
+  margin-bottom: 35px;
+  box-shadow: 0 15px 45px rgba(255, 182, 193, 0.25);
+  text-align: center;
+  transition: all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.welcome-card h2 {
+  color: #e63946;
+  font-size: 28px;
+  margin-bottom: 25px;
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+
+.time-text {
+  font-size: 32px;
+  color: #e63946;
+  font-weight: 800;
+  margin: 20px 0;
+  letter-spacing: 2px;
+  text-shadow: 0 2px 10px rgba(230, 57, 70, 0.2);
+}
+
+/* 切换按钮样式 */
+.view-toggle-btn-group {
+  margin-bottom: 25px;
+  display: flex;
+  gap: 15px;
+  justify-content: center;
+}
+
+.toggle-btn {
+  background: rgba(255, 255, 255, 0.5) !important;
+  border: 1px solid rgba(255, 255, 255, 0.6) !important;
+  color: #6d6875 !important;
+  backdrop-filter: blur(5px);
+  border-radius: 12px !important;
+  padding: 10px 20px !important;
+  transition: all 0.3s !important;
+}
+
+.toggle-btn:hover {
+  background: rgba(255, 255, 255, 0.8) !important;
+  transform: translateY(-2px);
+  color: #e63946 !important;
+}
+
+.active-btn {
+  background: #e63946 !important;
+  color: white !important;
+  border-color: #e63946 !important;
+  box-shadow: 0 4px 15px rgba(230, 57, 70, 0.3) !important;
+}
+
+/* 数据卡片优化 */
+.stats-card-group {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 25px;
+  margin-bottom: 30px;
+}
+
+.stats-card {
+  background: rgba(255, 255, 255, 0.55) !important;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.6) !important;
+  border-radius: 24px !important;
+  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) !important;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+}
+
+.stats-card:hover {
+  transform: translateY(-10px) scale(1.03);
+  background: rgba(255, 255, 255, 0.75) !important;
+  box-shadow: 0 15px 35px rgba(255, 182, 193, 0.3) !important;
+}
+
+.stats-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 25px 0;
+}
+
+.stats-label {
+  color: #6d6875;
+  font-size: 1rem;
+  font-weight: 500;
+}
+
+.stats-value {
+  color: #e63946;
+  font-size: 1.8rem;
+  font-weight: 700;
+  text-shadow: 0 1px 2px rgba(230, 57, 70, 0.1);
+}
+
+/* 视图切换动画 */
+.view-fade-enter-active,
+.view-fade-leave-active {
+  transition: all 0.5s ease;
+}
+.view-fade-enter-from,
+.view-fade-leave-to {
+  opacity: 0;
+  transform: translateY(10px);
 }
 
 /* 移动端遮罩层 */
@@ -619,38 +1163,25 @@ onUnmounted(() => {
   display: none;
 }
 
+/* 响应式调整 */
 @media (max-width: 768px) {
+  .home-header {
+    padding: 0 15px !important;
+  }
+
+  .app-title {
+    font-size: 16px !important;
+  }
+
   .home-aside {
-    position: fixed; /* 改为 fixed 确保浮在最上层 */
+    position: fixed;
     height: calc(100vh - 60px);
     top: 60px;
     left: 0;
-    z-index: 1001; /* 提高层级 */
+    z-index: 1001;
     box-shadow: 4px 0 15px rgba(255, 192, 203, 0.3);
   }
   
-  .mobile-mask {
-    display: block;
-    position: fixed;
-    top: 60px;
-    left: 0;
-    width: 100vw;
-    height: 100vh;
-    background-color: rgba(0, 0, 0, 0.3);
-    z-index: 1000;
-    backdrop-filter: blur(2px);
-  }
-  
-  .main-wrapper {
-    width: 100%;
-    overflow-x: hidden;
-  }
-  
-  /* 移动端展开时的效果 */
-  .home-aside {
-    transition: transform 0.3s ease, width 0.3s ease !important;
-  }
-
   .home-aside.is-mobile-hidden {
     width: 0 !important;
     transform: translateX(-100%);
@@ -664,226 +1195,103 @@ onUnmounted(() => {
     opacity: 1;
   }
 
-  .app-title {
-    font-size: 14px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    max-width: 150px;
-  }
-  
-  .username {
-    display: none;
+  .mobile-mask {
+    display: block;
+    position: fixed;
+    top: 60px;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: rgba(0, 0, 0, 0.3);
+    z-index: 1000;
+    backdrop-filter: blur(2px);
   }
 
   .home-main {
-    padding: 15px 10px !important;
+    padding: 15px !important;
     width: 100%;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
   }
 
-  .welcome-card, .stats-card {
-    width: 100%;
-    max-width: 100%;
-    margin-left: 0;
-    margin-right: 0;
-    padding: 20px 15px;
+  .welcome-card {
+    padding: 25px 20px !important;
+    margin-bottom: 25px !important;
   }
 
-  .time-text {
-    font-size: 1rem;
-    word-break: break-all;
-    line-height: 1.4;
-  }
-}
-
-.aside-menu {
-  border-right: none;
-  height: 100%;
-}
-.menu-item {
-  transition: all 0.3s;
-}
-.menu-item:hover {
-  background-color: rgba(255, 182, 193, 0.2);
-  transform: translateX(5px);
-}
-.menu-item .el-icon {
-  transition: color 0.3s;
-}
-.menu-item:hover .el-icon {
-  color: #e63946;
-}
-
-/* 主内容区 */
-.home-main {
-  padding: 30px 20px;
-  position: relative;
-  z-index: 1;
-}
-
-/* 切换按钮+hover动画 */
-.view-toggle-btn-group {
-  margin-bottom: 20px;
-  display: flex;
-  gap: 10px;
-  justify-content: center;
-}
-.toggle-btn {
-  background-color: #ffd1dc;
-  border-color: #ffb6c1;
-  color: #e63946;
-  transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
-  transform-origin: center;
-}
-.toggle-btn:hover {
-  background-color: #ffb6c1;
-  border-color: #e63946;
-  transform: scale(1.08);
-  box-shadow: 0 4px 8px rgba(255, 182, 193, 0.3);
-}
-.active-btn {
-  background-color: #e63946;
-  border-color: #e63946;
-  color: #fff;
-}
-.active-btn:hover {
-  background-color: #ff6b81;
-  border-color: #ff6b81;
-  transform: scale(1.08);
-  box-shadow: 0 4px 8px rgba(230, 57, 70, 0.3);
-}
-
-/* 视图切换淡入淡出动画 */
-.view-fade-enter-active,
-.view-fade-leave-active {
-  transition: all 0.5s ease;
-  opacity: 1;
-  transform: translateY(0);
-}
-.view-fade-enter-from,
-.view-fade-leave-to {
-  opacity: 0;
-  transform: translateY(10px);
-}
-
-/* 欢迎卡片+hover动画 */
-.welcome-card {
-  background-color: rgba(255, 255, 255, 0.9);
-  backdrop-filter: blur(10px);
-  padding: 30px 24px;
-  border-radius: 16px;
-  box-shadow: 0 6px 16px rgba(255, 192, 203, 0.15);
-  margin-bottom: 30px;
-  text-align: center;
-  transition: all 0.4s ease;
-  border: 1px solid rgba(255, 182, 193, 0.3);
-}
-.welcome-card:hover {
-  transform: translateY(-5px) scale(1.02);
-  box-shadow: 0 10px 20px rgba(255, 192, 203, 0.25);
-  background-color: #fff;
-}
-.welcome-card h2 {
-  color: #e63946;
-  margin-bottom: 12px;
-  font-size: 1.8rem;
-  text-shadow: 0 2px 4px rgba(230, 57, 70, 0.1);
-  animation: pulseText 3s ease-in-out infinite;
-}
-@keyframes pulseText {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.9; color: #ff6b81; }
-}
-.welcome-card p {
-  color: #6d6875;
-  margin: 6px 0;
-  font-size: 1.1rem;
-}
-.anniversary-name {
-  color: #e63946;
-  font-weight: 600;
-}
-.time-text {
-  font-size: 1.6rem;
-  color: #e63946;
-  font-weight: 600;
-  margin-top: 15px;
-  letter-spacing: 1px;
-  text-shadow: 0 1px 3px rgba(230, 57, 70, 0.15);
-}
-
-/* 数据卡片+hover动画 */
-.stats-card-group {
-  display: flex;
-  gap: 25px;
-}
-
-@media (max-width: 768px) {
-  .stats-card-group {
-    flex-direction: column;
-    gap: 15px;
-  }
-  
   .welcome-card h2 {
-    font-size: 1.4rem;
+    font-size: 20px !important;
   }
-  
+
   .time-text {
-    font-size: 1.1rem;
+    font-size: 18px !important;
+    letter-spacing: 1px !important;
   }
 
-  .stats-value {
-    font-size: 1.4rem;
+  .stats-card-group {
+    grid-template-columns: 1fr !important;
+    gap: 15px !important;
+    margin-bottom: 25px !important;
   }
-}
 
-.stats-card {
-  flex: 1;
-  text-align: center;
-  background-color: rgba(255, 255, 255, 0.9);
-  backdrop-filter: blur(8px);
-  border: 1px solid rgba(255, 182, 193, 0.2);
-  border-radius: 12px;
-  box-shadow: 0 4px 12px rgba(255, 192, 203, 0.1);
-  transition: all 0.4s ease;
-  overflow: hidden;
-  position: relative;
-}
-.stats-card:hover {
-  transform: translateY(-8px);
-  box-shadow: 0 8px 18px rgba(255, 192, 203, 0.2);
-  background-color: #fff;
-}
-.stats-card::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 0;
-  height: 3px;
-  background: linear-gradient(90deg, #ffb6c1, #e63946);
-  transition: width 0.4s ease;
-}
-.stats-card:hover::before {
-  width: 100%;
-}
-.stats-content {
-  padding: 25px 0;
-  position: relative;
-}
-.stats-label {
-  display: block;
-  color: #6d6875;
-  margin-bottom: 10px;
-  font-size: 1rem;
-}
-.stats-value {
-  font-size: 1.8rem;
-  font-weight: 600;
-  color: #e63946;
-  text-shadow: 0 1px 2px rgba(230, 57, 70, 0.1);
+  .love-tree-section {
+    padding: 20px !important;
+    border-radius: 20px !important;
+  }
+
+  .tree-container {
+    flex-direction: column !important;
+    gap: 20px !important;
+  }
+
+  .tree-visual {
+    width: 160px !important;
+    height: 200px !important;
+  }
+
+  .tree-leaves {
+    width: 140px !important;
+    height: 140px !important;
+    bottom: 60px !important;
+  }
+
+  .leaf-cluster {
+    width: 80px !important;
+    height: 80px !important;
+  }
+
+  .tree-trunk {
+    width: 24px !important;
+    height: 80px !important;
+  }
+
+  .tree-info {
+    width: 100% !important;
+    min-width: unset !important;
+  }
+
+  .growth-tip {
+    font-size: 13px !important;
+  }
+
+  .romantic-heart-progress {
+    padding: 20px !important;
+    border-radius: 20px !important;
+  }
+
+  .heart-container {
+    width: 80px !important;
+    height: 80px !important;
+  }
+
+  .view-toggle-btn-group {
+    margin-bottom: 20px !important;
+    display: flex;
+    justify-content: center;
+    width: 100%;
+  }
+
+  .toggle-btn {
+    flex: 1;
+    padding: 8px 0 !important;
+  }
 }
 </style>

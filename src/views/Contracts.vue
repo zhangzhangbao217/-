@@ -1,7 +1,6 @@
 <!-- Contracts.vue -->
 <template>
   <el-container class="contract-container">
-    <div class="love-bg-decoration"></div>
     <el-header class="contract-header">
       <div class="header-left">
         <el-icon class="back-btn" @click="goBack"><ArrowLeft /></el-icon>
@@ -74,73 +73,241 @@ const contracts = ref([
 <style scoped>
 .contract-container {
   min-height: 100vh;
-  background: #fdfcfb;
+  background: transparent;
   position: relative;
+  overflow-x: hidden;
 }
-.love-bg-decoration {
-  position: absolute;
-  top: 0; left: 0; width: 100%; height: 100%;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='30' height='30' fill='%23ffccd5' opacity='0.1'%3E%3Cpath d='M15 25C12.343 25 10 22.657 10 20c0-3 5-7 5-7s5 4 5 7c0 2.657-2.343 5-5 5z'/%3E%3C/svg%3E");
-  z-index: 0; pointer-events: none;
-}
+
 .contract-header {
-  background: rgba(255, 255, 255, 0.9);
-  backdrop-filter: blur(10px);
-  display: flex; align-items: center; padding: 0 20px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
-  z-index: 10;
+  background: rgba(255, 255, 255, 0.6) !important;
+  backdrop-filter: blur(15px) !important;
+  -webkit-backdrop-filter: blur(15px) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.4) !important;
+  display: flex;
+  align-items: center;
+  padding: 0 20px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  height: 64px !important;
 }
-.header-left { display: flex; align-items: center; gap: 10px; }
-.back-btn { font-size: 20px; cursor: pointer; color: #b8860b; }
-.page-title { font-size: 18px; font-weight: 600; color: #b8860b; }
 
-.contract-main { position: relative; z-index: 1; padding: 30px 20px; max-width: 900px; margin: 0 auto; }
-.page-intro { text-align: center; margin-bottom: 50px; }
-.page-intro h2 { color: #8b4513; font-family: "STKaiti", "KaiTi", serif; margin-bottom: 10px; }
-.page-intro p { color: #bc8f8f; }
+.back-btn {
+  cursor: pointer;
+  font-size: 20px;
+  color: #ff6b81;
+  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  padding: 8px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.5);
+  margin-right: 8px;
+}
 
-.contracts-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: 30px; }
+.back-btn:hover {
+  color: #ff4757;
+  transform: scale(1.1) rotate(-10deg);
+  background: white;
+  box-shadow: 0 4px 12px rgba(255, 107, 129, 0.2);
+}
+
+.page-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #ff4757;
+  letter-spacing: 1px;
+}
+
+.contract-main {
+  padding: 40px 20px;
+  max-width: 1000px;
+  margin: 0 auto;
+  position: relative;
+  z-index: 1;
+}
+
+.page-intro {
+  text-align: center;
+  margin-bottom: 50px;
+  background: rgba(255, 255, 255, 0.7) !important;
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.6) !important;
+  padding: 25px 50px !important;
+  border-radius: 30px !important;
+  box-shadow: 0 10px 30px rgba(255, 182, 193, 0.2) !important;
+  display: inline-block;
+  left: 50%;
+  transform: translateX(-50%);
+  position: relative;
+  animation: fadeInDown 0.8s ease-out;
+}
+
+@keyframes fadeInDown {
+  from { opacity: 0; transform: translate(-50%, -20px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
+}
+
+.page-intro h2 {
+  color: #ff4757;
+  font-size: 2.2rem;
+  margin-bottom: 10px;
+  font-family: "STKaiti", "KaiTi", serif;
+  font-weight: 700;
+}
+
+.page-intro p {
+  color: #ff7f9d;
+  font-size: 1.1rem;
+  opacity: 0.9;
+}
+
+.contracts-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+  gap: 30px;
+  margin-top: 30px;
+}
 
 .contract-paper {
-  background: #fff;
-  padding: 30px;
-  border: 1px solid #eee;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+  background: rgba(255, 255, 255, 0.7) !important;
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.6) !important;
+  padding: 40px 35px;
+  border-radius: 24px !important;
+  box-shadow: 0 15px 40px rgba(255, 182, 193, 0.2) !important;
   position: relative;
-  min-height: 300px;
+  min-height: 350px;
   display: flex;
   flex-direction: column;
-  background-image: linear-gradient(#f9f9f9 1px, transparent 1px);
-  background-size: 100% 25px;
+  background-image: linear-gradient(rgba(255, 107, 129, 0.05) 1px, transparent 1px) !important;
+  background-size: 100% 30px !important;
+  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) !important;
+  animation: fadeInUp 0.6s ease-out both;
 }
 
-.paper-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; }
-.contract-no { font-family: monospace; color: #ccc; font-size: 12px; }
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(30px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.contract-paper:hover {
+  transform: translateY(-10px) scale(1.02) !important;
+  background: rgba(255, 255, 255, 0.85) !important;
+  box-shadow: 0 20px 50px rgba(255, 107, 129, 0.3) !important;
+}
+
+.paper-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 25px;
+}
+
+.contract-no {
+  font-family: 'Courier New', Courier, monospace;
+  color: #ffb3c1;
+  font-size: 14px;
+  font-weight: 600;
+}
+
 .stamp-placeholder {
-  width: 60px; height: 60px; border: 2px solid #e63946; border-radius: 50%;
-  display: flex; align-items: center; justify-content: center;
-  color: #e63946; font-weight: bold; font-size: 12px;
-  transform: rotate(-20deg); opacity: 0.6;
+  width: 70px;
+  height: 70px;
+  border: 3px solid #ff4757;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ff4757;
+  font-weight: 900;
+  font-size: 14px;
+  transform: rotate(-25deg);
+  opacity: 0.7;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  box-shadow: 0 0 10px rgba(255, 71, 87, 0.2);
 }
 
 .contract-title {
-  color: #333; font-size: 20px; text-align: center; margin-bottom: 25px;
-  font-family: "STKaiti", "KaiTi", serif; border-bottom: 2px solid #8b4513;
-  padding-bottom: 5px; display: inline-block; align-self: center;
+  color: #ff4757;
+  font-size: 22px;
+  text-align: center;
+  margin-bottom: 30px;
+  font-family: "STKaiti", "KaiTi", serif;
+  border-bottom: 2px solid #ff4757;
+  padding-bottom: 8px;
+  display: inline-block;
+  align-self: center;
+  font-weight: 700;
 }
 
-.contract-content { flex: 1; margin-bottom: 30px; }
-.contract-content p { color: #555; line-height: 25px; text-indent: 2em; font-size: 15px; }
+.contract-content {
+  flex: 1;
+  margin-bottom: 40px;
+}
 
-.contract-signatures { display: flex; justify-content: space-around; margin-bottom: 20px; }
-.sig { display: flex; flex-direction: column; align-items: center; }
-.sig .label { font-size: 12px; color: #999; margin-bottom: 5px; }
-.sig .name { font-family: "STKaiti", "KaiTi", serif; font-size: 18px; color: #333; border-bottom: 1px solid #333; min-width: 80px; text-align: center; }
+.contract-content p {
+  color: #4a4a4a;
+  line-height: 1.8;
+  text-indent: 2em;
+  font-size: 16px;
+  font-family: "STKaiti", "KaiTi", serif;
+}
 
-.contract-footer { text-align: right; font-size: 12px; color: #bbb; }
+.contract-signatures {
+  display: flex;
+  justify-content: space-around;
+  margin-bottom: 25px;
+  padding-top: 20px;
+  border-top: 1px dashed rgba(255, 71, 87, 0.2);
+}
+
+.sig {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.sig .label {
+  font-size: 13px;
+  color: #ff7f9d;
+  margin-bottom: 8px;
+}
+
+.sig .name {
+  font-family: "STKaiti", "KaiTi", serif;
+  font-size: 20px;
+  color: #333;
+  border-bottom: 1.5px solid #ff4757;
+  min-width: 100px;
+  text-align: center;
+  padding: 0 10px 5px;
+}
+
+.contract-footer {
+  text-align: right;
+  font-size: 13px;
+  color: #ffb3c1;
+  font-weight: 500;
+}
 
 @media (max-width: 768px) {
-  .contracts-grid { grid-template-columns: 1fr; }
-  .contract-paper { padding: 20px; }
+  .contracts-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .contract-paper {
+    padding: 30px 25px;
+  }
+  
+  .page-intro {
+    padding: 20px 30px !important;
+    width: 90%;
+  }
+  
+  .page-intro h2 {
+    font-size: 1.8rem;
+  }
 }
 </style>

@@ -1,7 +1,6 @@
 <!-- BucketList.vue -->
 <template>
   <el-container class="bucket-container">
-    <div class="love-bg-decoration"></div>
     <el-header class="bucket-header">
       <div class="header-left">
         <el-icon class="back-btn" @click="goBack"><ArrowLeft /></el-icon>

@@ -1,8 +1,6 @@
 <template>
 
   <el-container class="album-container">
-    <div class="romantic-bg"></div>
-
     <el-header class="album-header">
       <div class="header-left">
         <el-icon class="back-btn" @click="goBack">
@@ -230,94 +228,99 @@ const toggleZoom = (idx) => {
 </script>
 
 <style scoped>
-
-  /* 页面整体浪漫背景 */
 .album-container {
   min-height: 100vh;
-  display: flex;
-  flex-direction: column;
+  background: transparent;
   position: relative;
-  overflow: hidden;
-  margin: 0;
-  padding: 0;
-  background: linear-gradient(120deg, #ffdddd, #ffe6e6);
-}
-
-.romantic-bg {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' fill='%23ffcccc' opacity='0.1'%3E%3Cpath d='M10 15C8.343 15 7 13.657 7 12c0-2 3-4 3-4s3 2 3 4c0 1.657-1.343 3-3 3zm0-10a2 2 0 1 0 0-4 2 2 0 0 0 0 4z'/%3E%3C/svg%3E") repeat;
-  animation: bgFlow 18s infinite ease;
-  z-index: -1;
-}
-@keyframes bgFlow {
-  0% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
+  overflow-x: hidden;
 }
 
 .album-header {
-  padding: 12px 24px;
-  background: rgba(255, 255, 255, 0.85);
-  backdrop-filter: blur(8px);
-  box-shadow: 0 2px 10px rgba(255, 107, 158, 0.1);
-  border: none;
-}
-.header-left {
+  background: rgba(255, 255, 255, 0.6) !important;
+  backdrop-filter: blur(15px) !important;
+  -webkit-backdrop-filter: blur(15px) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.4) !important;
   display: flex;
   align-items: center;
-  gap: 10px;
+  padding: 0 20px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  height: 64px !important;
 }
+
 .back-btn {
-  font-size: 24px;
-  color: #e53e3e;
   cursor: pointer;
+  font-size: 20px;
+  color: #ff6b81;
+  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  padding: 8px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.5);
+  margin-right: 8px;
 }
+
+.back-btn:hover {
+  color: #ff4757;
+  transform: scale(1.1) rotate(-10deg);
+  background: white;
+  box-shadow: 0 4px 12px rgba(255, 107, 129, 0.2);
+}
+
 .page-title {
-  font-size: 22px;
-  font-weight: 700;
-  color: #e53e3e;
+  font-size: 18px;
+  font-weight: 600;
+  color: #ff4757;
+  letter-spacing: 1px;
 }
 
 .album-main {
-  flex: 1;
-  padding: 20px;
+  padding: 40px 20px;
+  max-width: 1200px;
+  margin: 0 auto;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  position: relative;
 }
 
 .page-title-bar {
-  position: relative;
-  margin-bottom: 20px;
-  background: rgba(255, 255, 255, 0.9);
-  padding: 12px 24px;
-  border-radius: 25px;
   text-align: center;
-  box-shadow: 0 3px 15px rgba(255, 107, 158, 0.15);
+  margin-bottom: 40px;
+  background: rgba(255, 255, 255, 0.7) !important;
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.6) !important;
+  padding: 20px 40px !important;
+  border-radius: 30px !important;
+  box-shadow: 0 10px 30px rgba(255, 182, 193, 0.2) !important;
+  animation: fadeInDown 0.8s ease-out;
 }
+
+@keyframes fadeInDown {
+  from { opacity: 0; transform: translateY(-20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
 .page-title-bar h2 {
-  margin: 0;
-  font-size: 26px;
-  color: #e53e3e;
+  color: #ff4757;
+  font-size: 2.2rem !important;
+  margin-bottom: 8px;
+  font-weight: 700;
+  text-shadow: 2px 2px 4px rgba(255, 71, 87, 0.1);
+  letter-spacing: 2px !important;
 }
+
 .page-title-bar p {
-  margin: 6px 0 0;
-  font-size: 14px;
-  color: #999;
+  color: #ff7f9d !important;
+  font-size: 1.1rem !important;
+  opacity: 0.9;
+  letter-spacing: 1px !important;
 }
 
 .fullscreen-carousel {
   width: 100%;
-  max-width: 1200px;
-  margin: 0 auto;
-  border: none;
-  overflow: hidden;
+  height: 65vh !important;
+  margin-bottom: 40px;
 }
 
 .photo-wrapper {
@@ -328,26 +331,42 @@ const toggleZoom = (idx) => {
   display: flex;
   align-items: center;
   justify-content: center;
+  background: rgba(255, 255, 255, 0.4);
+  border-radius: 20px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.5);
 }
+
 .fullscreen-img {
-  width: auto;
-  height: auto;
-  max-width: 100%;
-  max-height: 100%;
+  max-width: 95% !important;
+  max-height: 95% !important;
   object-fit: contain;
-  border-radius: 8px;
-  box-shadow: 0 4px 15px rgba(255, 107, 158, 0.2);
+  border-radius: 12px;
+  box-shadow: 0 15px 45px rgba(255, 107, 129, 0.25);
+  transition: transform 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) !important;
+}
+
+.photo-wrapper:hover .fullscreen-img {
+  transform: scale(1.05) !important;
 }
 
 .delete-btn {
   position: absolute;
-  top: 10px;
-  right: 10px;
-  width: 36px;
-  height: 36px;
+  top: 15px;
+  right: 15px;
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
-  padding: 0;
-  z-index: 3;
+  background: rgba(255, 71, 87, 0.8) !important;
+  border: none !important;
+  backdrop-filter: blur(5px);
+  z-index: 10;
+  transition: all 0.3s ease !important;
+}
+
+.delete-btn:hover {
+  background: #ff4757 !important;
+  transform: scale(1.1) rotate(90deg) !important;
 }
 
 .empty-placeholder {
@@ -356,21 +375,29 @@ const toggleZoom = (idx) => {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #999;
-  font-size: 20px;
+  color: #ff7f9d;
+  font-size: 1.5rem;
+  font-weight: 600;
 }
 
 .upload-area {
-  margin-top: 30px;
+  margin-top: 20px;
 }
+
 .romantic-upload-btn {
-  background: linear-gradient(90deg, #ff4081, #ff6b9e);
-  border: none;
-  padding: 14px 40px;
-  font-size: 16px;
-  border-radius: 50px;
-  box-shadow: 0 4px 15px rgba(255, 107, 158, 0.3);
-  color: #fff;
+  background: linear-gradient(135deg, #ff4757, #ff6b81) !important;
+  border: none !important;
+  padding: 18px 50px !important;
+  font-size: 1.2rem !important;
+  border-radius: 50px !important;
+  box-shadow: 0 10px 25px rgba(255, 71, 87, 0.3) !important;
+  color: #fff !important;
+  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) !important;
+}
+
+.romantic-upload-btn:hover {
+  transform: translateY(-5px) scale(1.05) !important;
+  box-shadow: 0 15px 35px rgba(255, 71, 87, 0.4) !important;
 }
 
 .zoom-overlay {
@@ -379,148 +406,51 @@ const toggleZoom = (idx) => {
   left: 0;
   width: 100vw;
   height: 100vh;
-  background: rgba(255, 245, 248, 0.97);
+  background: rgba(255, 245, 248, 0.98);
+  backdrop-filter: blur(10px);
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 100;
+  z-index: 2000;
   cursor: zoom-out;
+  animation: fadeIn 0.3s ease-out;
 }
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
 .zoomed-img {
   max-width: 90%;
   max-height: 90%;
   object-fit: contain;
-  border-radius: 12px;
-  box-shadow: 0 12px 35px rgba(255, 107, 158, 0.4);
+  border-radius: 20px;
+  box-shadow: 0 20px 60px rgba(255, 107, 129, 0.4);
+  animation: zoomIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes zoomIn {
+  from { transform: scale(0.8); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
 }
 
 @media (max-width: 768px) {
   .fullscreen-carousel {
-    height: 50vh;
+    height: 50vh !important;
   }
-  .romantic-upload-btn {
-    padding: 12px 30px;
-    font-size: 14px;
+  
+  .page-title-bar {
+    padding: 15px 25px !important;
   }
-}
-
-/* 调整轮播图和照片大小 */
-.fullscreen-carousel {
-  height: 70vh !important; /* 增大轮播图高度 */
-  max-width: 1400px !important;
-}
-
-.fullscreen-img {
-  max-width: 90% !important;
-  max-height: 90% !important;
-  transition: transform 0.3s ease !important;
-}
-
-.photo-wrapper:hover .fullscreen-img {
-  transform: scale(1.02) !important; /* hover时轻微放大增加互动感 */
-}
-
-/* 增加浪漫装饰元素 */
-.album-container::before,
-.album-container::after {
-  content: '';
-  position: fixed;
-  width: 100%;
-  height: 100%;
-  background-image:
-      radial-gradient(circle, #ffccd5 2px, transparent 2px),
-      radial-gradient(circle, #ffb6c1 2px, transparent 2px);
-  background-size: 50px 50px;
-  background-position: 0 0, 25px 25px;
-  opacity: 0.2;
-  z-index: -1;
-  pointer-events: none;
-  animation: float 30s linear infinite;
-}
-
-.album-container::after {
-  animation-delay: 15s !important;
-  background-image:
-      radial-gradient(circle, #ff9aa2 2px, transparent 2px),
-      radial-gradient(circle, #fadadd 2px, transparent 2px);
-}
-
-/* 增强标题浪漫感 */
-.page-title-bar {
-  padding: 20px 30px !important;
-  border: 1px solid rgba(255, 182, 193, 0.3) !important;
-}
-
-.page-title-bar h2 {
-  font-size: 32px !important;
-  text-shadow: 0 2px 10px rgba(255, 107, 158, 0.3) !important;
-  letter-spacing: 2px !important;
-}
-
-.page-title-bar p {
-  font-size: 16px !important;
-  color: #e57373 !important;
-  letter-spacing: 1px !important;
-}
-
-/* 美化上传按钮 */
-.romantic-upload-btn {
-  padding: 16px 45px !important;
-  font-size: 18px !important;
-  transition: all 0.3s ease !important;
-}
-
-.romantic-upload-btn:hover {
-  transform: translateY(-3px) !important;
-  box-shadow: 0 8px 25px rgba(255, 107, 158, 0.4) !important;
-}
-
-/* 增加漂浮动画 */
-@keyframes float {
-  0% {
-    transform: translateY(0) rotate(0deg);
-  }
-  50% {
-    transform: translateY(-20px) rotate(1deg);
-  }
-  100% {
-    transform: translateY(0) rotate(0deg);
-  }
-}
-
-/* 调整删除按钮样式 */
-.delete-btn {
-  background-color: rgba(255, 66, 107, 0.8) !important;
-  transition: all 0.3s ease !important;
-}
-
-.delete-btn:hover {
-  background-color: #ff426b !important;
-  transform: scale(1.1) !important;
-}
-
-/* 增强背景效果 */
-.romantic-bg {
-  background: linear-gradient(135deg, #fff0f5, #ffe4e1, #fff0f5) !important;
-  animation: bgFlow 15s infinite ease !important;
-}
-
-@keyframes bgFlow {
-  0% { background-position: 0% 0%; }
-  25% { background-position: 50% 25%; }
-  50% { background-position: 100% 50%; }
-  75% { background-position: 50% 75%; }
-  100% { background-position: 0% 100%; }
-}
-
-/* 移动端适配调整 */
-@media (max-width: 768px) {
-  .fullscreen-carousel {
-    height: 60vh !important;
-  }
-
+  
   .page-title-bar h2 {
-    font-size: 26px !important;
+    font-size: 1.8rem !important;
+  }
+  
+  .romantic-upload-btn {
+    padding: 15px 35px !important;
+    font-size: 1rem !important;
   }
 }
 </style>

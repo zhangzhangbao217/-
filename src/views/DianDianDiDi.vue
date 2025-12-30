@@ -1,9 +1,6 @@
 <!-- src/views/DianDianDiDi.vue -->
 <template>
   <el-container class="dian-container">
-    <!-- 背景爱心装饰 -->
-    <div class="love-bg-decoration"></div>
-
     <!-- 顶部导航栏 -->
     <el-header class="dian-header">
       <div class="header-left">
@@ -129,11 +126,6 @@
           </div>
         </div>
       </el-dialog>
-
-      <!-- 漂浮的心 -->
-      <div class="floating-hearts-container">
-        <div v-for="n in 15" :key="n" class="floating-heart">❤️</div>
-      </div>
     </el-main>
   </el-container>
 </template>
@@ -257,30 +249,21 @@ const saveToStorage = () => {
 <style scoped>
 .dian-container {
   min-height: 100vh;
-  background: linear-gradient(135deg, #fff5f7 0%, #ffeef2 100%);
+  background: transparent;
   position: relative;
   overflow-x: hidden;
 }
 
-.love-bg-decoration {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='30' height='30' fill='%23ffccd5' opacity='0.15'%3E%3Cpath d='M15 25C12.343 25 10 22.657 10 20c0-3 5-7 5-7s5 4 5 7c0 2.657-2.343 5-5 5z'/%3E%3C/svg%3E");
-  z-index: 0;
-  pointer-events: none;
-}
-
 .dian-header {
-  background-color: rgba(255, 255, 255, 0.9);
-  backdrop-filter: blur(10px);
+  background-color: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   display: flex;
   align-items: center;
   padding: 0 20px;
-  box-shadow: 0 2px 10px rgba(255, 182, 193, 0.2);
+  box-shadow: 0 4px 15px rgba(255, 192, 203, 0.15);
   z-index: 10;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.3);
 }
 
 .header-left {
@@ -293,6 +276,14 @@ const saveToStorage = () => {
   font-size: 20px;
   cursor: pointer;
   color: #e63946;
+  padding: 8px;
+  border-radius: 50%;
+  transition: all 0.3s;
+}
+
+.back-btn:hover {
+  background-color: rgba(230, 57, 70, 0.1);
+  transform: scale(1.1);
 }
 
 .page-title {
@@ -316,26 +307,31 @@ const saveToStorage = () => {
 
 .page-title-bar h2 {
   color: #e63946;
-  font-size: 24px;
-  margin-bottom: 8px;
+  font-size: 26px;
+  margin-bottom: 12px;
+  font-weight: 700;
+  text-shadow: 0 2px 4px rgba(230, 57, 70, 0.1);
 }
 
 .page-title-bar p {
-  color: #999;
-  margin-bottom: 20px;
+  color: #8d99ae;
+  margin-bottom: 25px;
+  font-size: 15px;
 }
 
 .add-btn {
   background-color: #e63946;
-  border-color: #e63946;
-  padding: 10px 25px;
-  border-radius: 20px;
+  border: none;
+  padding: 12px 30px;
+  border-radius: 25px;
+  font-weight: 600;
+  box-shadow: 0 4px 12px rgba(230, 57, 70, 0.3);
   transition: all 0.3s;
 }
 
 .add-btn:hover {
-  transform: scale(1.05);
-  box-shadow: 0 4px 12px rgba(230, 57, 70, 0.3);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 15px rgba(230, 57, 70, 0.4);
 }
 
 .timeline-wrapper {
@@ -343,42 +339,50 @@ const saveToStorage = () => {
 }
 
 .memory-card {
-  border-radius: 12px;
-  border: 1px solid rgba(255, 182, 193, 0.3);
+  background: rgba(255, 255, 255, 0.6) !important;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.5) !important;
+  border-radius: 20px !important;
   cursor: pointer;
-  transition: all 0.3s;
+  transition: all 0.3s ease;
   position: relative;
-  padding-bottom: 10px;
+  padding-bottom: 5px;
 }
 
 .memory-card:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 6px 15px rgba(255, 182, 193, 0.2);
+  transform: translateY(-5px) scale(1.01);
+  background: rgba(255, 255, 255, 0.8) !important;
+  box-shadow: 0 12px 24px rgba(255, 182, 193, 0.3) !important;
 }
 
 .click-tip {
   position: absolute;
-  bottom: 8px;
-  right: 15px;
-  font-size: 11px;
-  color: #ffb6c1;
+  bottom: 10px;
+  right: 20px;
+  font-size: 12px;
+  color: #e63946;
   opacity: 0;
   transition: opacity 0.3s;
 }
 
 .memory-card:hover .click-tip {
-  opacity: 1;
+  opacity: 0.6;
 }
 
 .title-with-mood {
-   display: flex;
-   align-items: center;
-   gap: 10px;
- }
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
 
 /* 详情弹窗样式 */
 :deep(.detail-dialog) {
-  border-radius: 20px !important;
+  background: rgba(255, 255, 255, 0.9) !important;
+  backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px);
+  border-radius: 28px !important;
+  border: 1px solid rgba(255, 255, 255, 0.5) !important;
   overflow: hidden;
 }
 
@@ -391,64 +395,67 @@ const saveToStorage = () => {
   display: flex;
   justify-content: center;
   gap: 15px;
-  margin-bottom: 15px;
+  margin-bottom: 20px;
 }
 
 .detail-date {
-  color: #999;
+  color: #8d99ae;
   font-size: 14px;
 }
 
 .detail-mood {
-  background-color: #fff0f3;
+  background-color: rgba(230, 57, 70, 0.1);
   color: #e63946;
-  padding: 2px 10px;
+  padding: 4px 12px;
   border-radius: 12px;
   font-size: 13px;
+  font-weight: 600;
 }
 
 .detail-title {
   color: #e63946;
-  font-size: 22px;
+  font-size: 24px;
   margin: 10px 0;
+  font-weight: 700;
 }
 
 .detail-divider {
-  width: 50px;
-  height: 3px;
-  background: #ffb6c1;
-  margin: 15px auto;
+  width: 60px;
+  height: 4px;
+  background: linear-gradient(to right, #ffccd5, #e63946);
+  margin: 20px auto;
   border-radius: 2px;
 }
 
 .detail-text {
-  color: #666;
+  color: #4a4e69;
   line-height: 1.8;
   font-size: 16px;
   white-space: pre-wrap;
   text-align: left;
-  background: #fff9fa;
-  padding: 20px;
-  border-radius: 15px;
-  margin-top: 20px;
+  background: rgba(255, 255, 255, 0.5);
+  padding: 25px;
+  border-radius: 20px;
+  margin-top: 25px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
 }
 
 .detail-footer {
-  margin-top: 30px;
+  margin-top: 35px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 5px;
+  gap: 8px;
 }
 
 .heart-icon {
-  font-size: 24px;
+  font-size: 28px;
   animation: heartbeat 1.5s infinite;
 }
 
 .footer-text {
-  color: #ffb6c1;
-  font-size: 12px;
+  color: #8d99ae;
+  font-size: 13px;
   font-style: italic;
 }
 
@@ -460,30 +467,32 @@ const saveToStorage = () => {
   70% { transform: scale(1); }
 }
 
- .mood-tag {
-  background-color: #fff0f3;
+.mood-tag {
+  background-color: rgba(230, 57, 70, 0.05);
   color: #e63946;
-  padding: 2px 8px;
+  padding: 2px 10px;
   border-radius: 10px;
   font-size: 12px;
-  border: 1px solid #ffccd5;
+  font-weight: 600;
+  border: 1px solid rgba(230, 57, 70, 0.1);
 }
 
 .card-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 10px;
+  margin-bottom: 12px;
 }
 
 .card-header h3 {
   margin: 0;
   color: #e63946;
-  font-size: 18px;
+  font-size: 20px;
+  font-weight: 700;
 }
 
 .heart-dot {
-  font-size: 18px;
+  font-size: 20px;
   animation: pulse 1.5s infinite;
 }
 
@@ -493,65 +502,14 @@ const saveToStorage = () => {
   100% { transform: scale(1); }
 }
 
-/* 漂浮的心 */
-.floating-hearts-container {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  pointer-events: none;
-  z-index: 0;
-  overflow: hidden;
-}
-
-.floating-heart {
-  position: absolute;
-  bottom: -20px;
-  font-size: 20px;
-  opacity: 0;
-  animation: floatUp var(--duration) ease-in infinite;
-  animation-delay: var(--delay);
-  left: var(--left);
-}
-
-@keyframes floatUp {
-  0% {
-    transform: translateY(0) rotate(0deg);
-    opacity: 0;
-  }
-  20% {
-    opacity: 0.6;
-  }
-  100% {
-    transform: translateY(-100vh) rotate(360deg);
-    opacity: 0;
-  }
-}
-
-/* 为每个心设置随机位置和延迟 */
-.floating-heart:nth-child(1) { --left: 10%; --duration: 8s; --delay: 0s; }
-.floating-heart:nth-child(2) { --left: 20%; --duration: 6s; --delay: 2s; }
-.floating-heart:nth-child(3) { --left: 35%; --duration: 7s; --delay: 1s; }
-.floating-heart:nth-child(4) { --left: 50%; --duration: 9s; --delay: 3s; }
-.floating-heart:nth-child(5) { --left: 65%; --duration: 5s; --delay: 0.5s; }
-.floating-heart:nth-child(6) { --left: 80%; --duration: 8s; --delay: 4s; }
-.floating-heart:nth-child(7) { --left: 90%; --duration: 7s; --delay: 1.5s; }
-.floating-heart:nth-child(8) { --left: 15%; --duration: 10s; --delay: 5s; }
-.floating-heart:nth-child(9) { --left: 45%; --duration: 6s; --delay: 2.5s; }
-.floating-heart:nth-child(10) { --left: 75%; --duration: 8s; --delay: 0.2s; }
-.floating-heart:nth-child(11) { --left: 5%; --duration: 7s; --delay: 3.5s; }
-.floating-heart:nth-child(12) { --left: 55%; --duration: 9s; --delay: 1.2s; }
-.floating-heart:nth-child(13) { --left: 25%; --duration: 6s; --delay: 4.5s; }
-.floating-heart:nth-child(14) { --left: 85%; --duration: 8s; --delay: 0.8s; }
-.floating-heart:nth-child(15) { --left: 60%; --duration: 7s; --delay: 2.2s; }
-
 .delete-btn {
-  color: #ffb6c1;
+  color: #8d99ae;
+  transition: all 0.3s;
 }
 
 .delete-btn:hover {
   color: #e63946;
+  transform: scale(1.2);
 }
 
 .memory-content {
@@ -563,12 +521,14 @@ const saveToStorage = () => {
 
 :deep(.el-timeline-item__node) {
   background-color: #e63946;
+  box-shadow: 0 0 0 4px rgba(230, 57, 70, 0.1);
 }
 
 :deep(.el-timeline-item__timestamp) {
   color: #e63946;
-  font-weight: 600;
+  font-weight: 700;
   font-size: 14px;
+  margin-bottom: 8px;
 }
 
 @media (max-width: 768px) {
@@ -577,7 +537,8 @@ const saveToStorage = () => {
   }
   
   .page-title-bar h2 {
-    font-size: 20px;
+    font-size: 22px;
   }
 }
+
 </style>
