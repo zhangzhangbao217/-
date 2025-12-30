@@ -103,10 +103,13 @@ const createParticles = (x: number, y: number) => {
     setTimeout(() => {
       const index = particles.value.findIndex(p => p.id === id)
       if (index !== -1) {
-        particles.value[index].x += (Math.random() - 0.5) * 100
-        particles.value[index].y += (Math.random() - 0.5) * 100
-        particles.value[index].opacity = 0
-        particles.value[index].scale = 0
+        const p = particles.value[index]
+        if (p) {
+          p.x += (Math.random() - 0.5) * 100
+          p.y += (Math.random() - 0.5) * 100
+          p.opacity = 0
+          p.scale = 0
+        }
       }
     }, 10)
 

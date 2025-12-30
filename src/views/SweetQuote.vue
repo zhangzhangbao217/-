@@ -33,7 +33,7 @@
         <el-input
             v-model="newQuoteContent"
             type="textarea"
-            rows="4"
+            :rows="4"
             placeholder="输入你的甜蜜语录吧~"
             class="quote-input"
         />
