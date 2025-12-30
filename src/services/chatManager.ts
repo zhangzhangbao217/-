@@ -105,6 +105,12 @@ export const initChat = async (silent = false) => {
 
     globalChatClient.value = newClient;
     
+    // 强制设置活跃状态
+    globalChatClient.value.on('conflict', () => {
+      console.warn('账号在其他地方登录，正在尝试夺回控制权...');
+      initChat(true);
+    });
+
     globalConversation.value = await newClient.getConversation(CONVERSATION_ID);
     if (!globalConversation.value) {
       globalConversation.value = await newClient.createConversation({

@@ -42,6 +42,37 @@ const ICE_SERVERS = {
 
 export const isWaitingForAck = ref(false);
 
+// 铃声资源
+const RINGTONE_OUTGOING = 'https://assets.mixkit.co/active_storage/sfx/135/135-preview.mp3'; // 拨出音
+const RINGTONE_INCOMING = 'https://assets.mixkit.co/active_storage/sfx/1354/1354-preview.mp3'; // 接入音
+
+let outgoingAudio: HTMLAudioElement | null = null;
+let incomingAudio: HTMLAudioElement | null = null;
+
+const playRingtone = (type: 'outgoing' | 'incoming') => {
+  stopRingtones();
+  if (type === 'outgoing') {
+    outgoingAudio = new Audio(RINGTONE_OUTGOING);
+    outgoingAudio.loop = true;
+    outgoingAudio.play().catch(e => console.log('播放拨出铃声失败:', e));
+  } else {
+    incomingAudio = new Audio(RINGTONE_INCOMING);
+    incomingAudio.loop = true;
+    incomingAudio.play().catch(e => console.log('播放接入铃声失败:', e));
+  }
+};
+
+const stopRingtones = () => {
+  if (outgoingAudio) {
+    outgoingAudio.pause();
+    outgoingAudio = null;
+  }
+  if (incomingAudio) {
+    incomingAudio.pause();
+    incomingAudio = null;
+  }
+};
+
 // 发送信令消息
 export const sendSignalingMessage = async (data: any, options: any = { transient: true }) => {
   if (signalingSender) {
@@ -158,6 +189,7 @@ export const startCall = async (type: CallType) => {
   callType.value = type;
   callStatus.value = 'calling';
   isWaitingForAck.value = true;
+  playRingtone('outgoing');
   currentCallId = `call_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
   createPeerConnection();
@@ -173,21 +205,33 @@ export const startCall = async (type: CallType) => {
     timestamp: Date.now()
   };
 
-  // 发送初始邀请
+  // 发送初始邀请 (持久化消息，确保对方上线后能收到)
   await sendSignalingMessage(signalData, { transient: false });
 
-  // 增加心跳重发机制：每 3 秒重发一次邀请，直到对方响应或超时
+  // 增加更激进的重发机制
   let retryCount = 0;
-  callInviteTimer = setInterval(async () => {
-    if (callStatus.value === 'calling' && retryCount < 10) {
-      console.log('重发通话邀请...', retryCount + 1);
-      // 重发可以使用 transient，减少服务器存储压力
-      await sendSignalingMessage(signalData, { transient: true });
-      retryCount++;
-    } else {
-      clearInterval(callInviteTimer);
-    }
-  }, 3000);
+  const startRetryTimer = () => {
+    callInviteTimer = setInterval(async () => {
+      if (callStatus.value === 'calling') {
+        retryCount++;
+        // 前 5 秒每秒发送一次，之后每 3 秒发送一次
+        if (retryCount <= 5 || retryCount % 3 === 0) {
+          if (retryCount > 20) { // 最多重试约 45 秒
+            clearInterval(callInviteTimer);
+            return;
+          }
+          console.log(`正在尝试第 ${retryCount} 次呼叫重连...`);
+          // 只有前 3 次重发使用持久化，之后使用瞬时消息以减轻压力
+          const isTransient = retryCount > 3;
+          await sendSignalingMessage(signalData, { transient: isTransient });
+        }
+      } else {
+        clearInterval(callInviteTimer);
+      }
+    }, 1000);
+  };
+
+  startRetryTimer();
 
   // 30秒无人接听自动挂断
   callTimeoutTimer = setTimeout(() => {
@@ -202,7 +246,8 @@ export const startCall = async (type: CallType) => {
 // 接听呼叫
 export const acceptCall = async () => {
   if (callStatus.value !== 'receiving') return;
-
+  
+  stopRingtones();
   const success = await initLocalStream(callType.value);
   if (!success) {
     handleHangup();
@@ -284,6 +329,7 @@ export const handleHangup = (shouldNotify: any = true) => {
     console.log('PeerConnection 已关闭');
   }
 
+  stopRingtones();
   callStatus.value = 'idle';
   isWaitingForAck.value = false;
   isMuted.value = false;
@@ -339,6 +385,8 @@ export const handleSignaling = async (data: any) => {
       currentCallId = callId;
       callType.value = incomingType;
       callStatus.value = 'receiving';
+      playRingtone('incoming');
+      
       // 先保存 offer，等接听时再处理
       sessionStorage.setItem('pending_offer', JSON.stringify(offer));
       break;
@@ -352,9 +400,10 @@ export const handleSignaling = async (data: any) => {
 
     case 'answer':
       if (peerConnection && (callStatus.value === 'calling' || callStatus.value === 'connected')) {
-        // 收到 Answer 意味着肯定收到信号了
-        isWaitingForAck.value = false;
-        // 停止重发邀请和超时计时
+    // 收到 Answer 意味着肯定收到信号了
+    isWaitingForAck.value = false;
+    stopRingtones();
+    // 停止重发邀请和超时计时
         if (callInviteTimer) clearInterval(callInviteTimer);
         if (callTimeoutTimer) clearTimeout(callTimeoutTimer);
         
