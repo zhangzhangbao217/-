@@ -80,7 +80,7 @@
         </el-popover>
         <el-button 
           :type="isRecording ? 'danger' : 'info'"
-          :icon="isRecording ? VideoPause : Microphone" 
+          :icon="isRecording ? VideoPlay : Microphone" 
           circle 
           @mousedown="startRecording"
           @mouseup="stopRecording"
@@ -174,10 +174,10 @@
           </div>
 
           <div class="call-controls">
-            <el-button :type="isMuted ? 'danger' : 'info'" :icon="isMuted ? Mute : Microphone" circle @click="toggleMute" />
-            <el-button type="danger" :icon="Close" circle @click="handleHangup" class="hangup-btn" />
-            <el-button v-if="callType === 'video'" :type="isCameraOff ? 'danger' : 'info'" :icon="isCameraOff ? VideoPause : VideoCamera" circle @click="toggleCamera" />
-          </div>
+        <el-button :type="isMuted ? 'danger' : 'info'" :icon="isMuted ? MuteNotification : Microphone" circle @click="toggleMute" />
+        <el-button type="danger" :icon="Close" circle @click="handleHangup" class="hangup-btn" />
+        <el-button v-if="callType === 'video'" :type="isCameraOff ? 'danger' : 'info'" :icon="isCameraOff ? VideoPlay : VideoCamera" circle @click="toggleCamera" />
+      </div>
         </div>
       </div>
     </transition>
@@ -194,13 +194,13 @@ import {
   Picture, 
   Star, 
   Microphone, 
-  VideoPause, 
+  VideoPlay, 
   Service,
   VideoCamera,
   Phone,
   Close,
   Check,
-  Mute
+  MuteNotification
 } from '@element-plus/icons-vue';
 import { TextMessage } from 'leancloud-realtime';
 import * as RealtimeModule from 'leancloud-realtime';
@@ -227,7 +227,10 @@ import {
   acceptCall, 
   handleHangup, 
   isMuted, 
-  isCameraOff
+  isCameraOff,
+  setSignalingSender,
+  toggleMute,
+  toggleCamera
 } from '../services/webrtcService';
 
 const { ImageMessage, AudioMessage } = RealtimeModule as any;
@@ -236,6 +239,14 @@ const router = useRouter();
 const messageListRef = ref<HTMLElement | null>(null);
 const localVideoRef = ref<HTMLVideoElement | null>(null);
 const remoteVideoRef = ref<HTMLVideoElement | null>(null);
+
+// 设置 WebRTC 信令发送器
+setSignalingSender(async (data) => {
+  if (globalConversation.value) {
+    const message = new TextMessage(`__SIGNAL__:${JSON.stringify(data)}`);
+    await globalConversation.value.send(message);
+  }
+});
 
 const inputMsg = ref('');
 const isPartnerOnline = globalIsOnline;
@@ -276,26 +287,6 @@ watch(callStatus, (status) => {
 
 const handleAccept = async () => {
   await acceptCall();
-};
-
-const toggleMute = () => {
-  if (localStream.value) {
-    const audioTrack = localStream.value.getAudioTracks()[0];
-    if (audioTrack) {
-      audioTrack.enabled = !audioTrack.enabled;
-      isMuted.value = !audioTrack.enabled;
-    }
-  }
-};
-
-const toggleCamera = () => {
-  if (localStream.value) {
-    const videoTrack = localStream.value.getVideoTracks()[0];
-    if (videoTrack) {
-      videoTrack.enabled = !videoTrack.enabled;
-      isCameraOff.value = !videoTrack.enabled;
-    }
-  }
 };
 
 const formatDuration = (seconds: number) => {

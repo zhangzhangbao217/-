@@ -1,5 +1,4 @@
 import { ref } from 'vue';
-import { globalConversation, currentUser, user1, user2 } from './chatManager';
 import { TextMessage } from 'leancloud-realtime';
 
 export type CallType = 'voice' | 'video';
@@ -12,6 +11,13 @@ export const remoteStream = ref<MediaStream | null>(null);
 export const isMuted = ref(false);
 export const isCameraOff = ref(false);
 
+// 外部传入的发送信号函数，避免循环依赖
+let signalingSender: ((data: any) => Promise<void>) | null = null;
+
+export const setSignalingSender = (sender: (data: any) => Promise<void>) => {
+  signalingSender = sender;
+};
+
 let peerConnection: RTCPeerConnection | null = null;
 let pendingCandidates: RTCIceCandidateInit[] = [];
 
@@ -20,31 +26,52 @@ const ICE_SERVERS = {
     { urls: 'stun:stun.l.google.com:19302' },
     { urls: 'stun:stun1.l.google.com:19302' },
     { urls: 'stun:stun2.l.google.com:19302' },
+    { urls: 'stun:stun.xten.com' },
+    { urls: 'stun:stun.rixtelecom.se' },
+    { urls: 'stun:stun.schlund.de' },
   ],
 };
 
 // 发送信令消息
 const sendSignalingMessage = async (data: any) => {
-  if (!globalConversation.value) return;
-  const message = new TextMessage(`__SIGNAL__:${JSON.stringify(data)}`);
-  await globalConversation.value.send(message);
+  if (signalingSender) {
+    await signalingSender(data);
+  }
 };
 
 // 初始化本地媒体流
 export const initLocalStream = async (type: CallType) => {
   try {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      throw new Error('您的浏览器不支持音视频通话功能，请使用 Chrome 或 Safari 浏览器打开');
+    }
+
     const constraints = {
       audio: true,
       video: type === 'video' ? {
         facingMode: 'user',
-        width: { ideal: 1280 },
-        height: { ideal: 720 }
+        // 移动端使用更保守的理想分辨率
+        width: { ideal: 640 },
+        height: { ideal: 480 }
       } : false
     };
+
+    console.log('正在请求媒体权限:', constraints);
     localStream.value = await navigator.mediaDevices.getUserMedia(constraints);
     return true;
-  } catch (error) {
+  } catch (error: any) {
     console.error('获取媒体流失败:', error);
+    let errorMsg = '无法访问摄像头或麦克风';
+    
+    if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
+      errorMsg = '请允许浏览器访问您的摄像头和麦克风以进行通话';
+    } else if (error.name === 'NotFoundError' || error.name === 'DevicesNotFoundError') {
+      errorMsg = '未找到可用的摄像头或麦克风设备';
+    } else if (error.message) {
+      errorMsg = error.message;
+    }
+    
+    alert(errorMsg);
     return false;
   }
 };
@@ -96,10 +123,7 @@ export const startCall = async (type: CallType) => {
   if (callStatus.value !== 'idle') return;
   
   const success = await initLocalStream(type);
-  if (!success) {
-    alert('无法访问摄像头或麦克风');
-    return;
-  }
+  if (!success) return;
 
   callType.value = type;
   callStatus.value = 'calling';
@@ -123,7 +147,6 @@ export const acceptCall = async () => {
   const success = await initLocalStream(callType.value);
   if (!success) {
     handleHangup();
-    alert('无法访问摄像头或麦克风');
     return;
   }
 
@@ -168,14 +191,41 @@ export const handleHangup = (shouldNotify: any = true) => {
     localStream.value = null;
   }
   
+  if (remoteStream.value) {
+    remoteStream.value.getTracks().forEach(track => track.stop());
+    remoteStream.value = null;
+  }
+  
   if (peerConnection) {
     peerConnection.close();
     peerConnection = null;
   }
 
-  remoteStream.value = null;
   callStatus.value = 'idle';
+  isMuted.value = false;
+  isCameraOff.value = false;
   pendingCandidates = [];
+  sessionStorage.removeItem('pending_offer');
+};
+
+export const toggleMute = () => {
+  if (localStream.value) {
+    const audioTrack = localStream.value.getAudioTracks()[0];
+    if (audioTrack) {
+      audioTrack.enabled = !audioTrack.enabled;
+      isMuted.value = !audioTrack.enabled;
+    }
+  }
+};
+
+export const toggleCamera = () => {
+  if (localStream.value) {
+    const videoTrack = localStream.value.getVideoTracks()[0];
+    if (videoTrack) {
+      videoTrack.enabled = !videoTrack.enabled;
+      isCameraOff.value = !videoTrack.enabled;
+    }
+  }
 };
 
 // 处理接收到的信令
