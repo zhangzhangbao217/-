@@ -5,8 +5,10 @@
         <el-button :icon="ArrowLeft" circle @click="goBack" class="header-btn" />
         <div class="chat-info">
           <span class="chat-name">💕 甜蜜私聊</span>
-          <span class="chat-status" :class="{ online: isPartnerOnline, connecting: isConnecting }">
+          <span v-if="isPartnerTyping" class="chat-status typing">对方正在输入...</span>
+          <span v-else class="chat-status" :class="{ online: isPartnerOnline, connecting: isConnecting }" @click="!isPartnerOnline && initChat()">
             {{ isConnecting ? '连接中...' : (isPartnerOnline ? '在线' : '离线') }}
+            <el-icon v-if="!isPartnerOnline && !isConnecting" class="refresh-icon"><Refresh /></el-icon>
           </span>
         </div>
         <div class="header-actions">
@@ -48,6 +50,12 @@
             <span class="send-time">{{ formatTime(msg.time) }}</span>
           </div>
           <div class="bubble">
+            <!-- 发送状态标识 -->
+            <div v-if="msg.from === currentUser.id" class="message-status">
+              <el-icon v-if="msg.status === 'sending'" class="status-icon is-loading"><Loading /></el-icon>
+              <el-icon v-if="msg.status === 'error'" class="status-icon error"><Warning /></el-icon>
+            </div>
+            
             <template v-if="msg.contentType === 'text'">
               <div class="text-content">
                 {{ msg.content }}
@@ -173,47 +181,72 @@
     <!-- 通话界面覆盖层 -->
     <transition name="fade">
       <div v-if="callStatus !== 'idle'" class="call-overlay">
+        <!-- 动态背景模糊 -->
+        <div class="call-bg-blur" :style="{ backgroundImage: `url(${partnerInfo.avatar})` }"></div>
+        
         <!-- 呼叫中/收到呼叫 -->
         <div v-if="callStatus === 'calling' || callStatus === 'receiving'" class="call-pending">
-          <el-avatar :size="100" :src="partnerInfo.avatar" class="call-avatar" />
-          <h2 class="call-name">{{ partnerInfo.name }}</h2>
-          <p class="call-status-text">
-            {{ callStatus === 'calling' ? (isWaitingForAck ? '正在唤醒对方设备...' : `正在呼叫对方${callType === 'video' ? '视频' : '语音'}...`) : `发来${callType === 'video' ? '视频' : '语音'}通话...` }}
-          </p>
+          <div class="call-user-info">
+            <el-avatar :size="120" :src="partnerInfo.avatar" class="call-avatar pulse" />
+            <h2 class="call-name">{{ partnerInfo.name }}</h2>
+            <p class="call-status-text">
+              {{ callStatus === 'calling' ? (isWaitingForAck ? '正在唤醒对方设备...' : `正在呼叫对方${callType === 'video' ? '视频' : '语音'}...`) : `发来${callType === 'video' ? '视频' : '语音'}通话...` }}
+            </p>
+          </div>
           
           <div class="call-actions">
             <template v-if="callStatus === 'receiving'">
-              <el-button type="success" :icon="Check" circle @click="handleAccept" class="action-btn accept" />
-              <el-button type="danger" :icon="Close" circle @click="handleHangup" class="action-btn decline" />
+              <div class="action-item">
+                <el-button type="success" :icon="Check" circle @click="handleAccept" class="action-btn accept" />
+                <span>接听</span>
+              </div>
+              <div class="action-item">
+                <el-button type="danger" :icon="Close" circle @click="handleHangup" class="action-btn decline" />
+                <span>拒绝</span>
+              </div>
             </template>
             <template v-else>
-              <el-button type="danger" :icon="Close" circle @click="handleHangup" class="action-btn decline" />
+              <div class="action-item">
+                <el-button type="danger" :icon="Close" circle @click="handleHangup" class="action-btn decline" />
+                <span>取消</span>
+              </div>
             </template>
           </div>
         </div>
 
         <!-- 通话中 -->
         <div v-if="callStatus === 'connected'" class="call-connected" :class="{ 'is-video': callType === 'video' }">
-          <!-- 隐藏的远程音频，用于语音通话或视频通话音频 -->
+          <!-- 隐藏的远程音频 -->
           <audio ref="remoteAudioRef" autoplay playsinline style="display: none;"></audio>
 
           <div v-if="callType === 'video'" class="video-container">
             <video ref="remoteVideoRef" autoplay playsinline class="remote-video"></video>
-            <video ref="localVideoRef" autoplay playsinline muted class="local-video"></video>
+            <div class="local-video-wrapper">
+              <video ref="localVideoRef" autoplay playsinline muted class="local-video"></video>
+            </div>
             <div class="video-timer">{{ formatDuration(callDurationSeconds) }}</div>
           </div>
           
           <div v-else class="voice-container">
-            <el-avatar :size="120" :src="partnerInfo.avatar" class="call-avatar pulse" />
+            <el-avatar :size="140" :src="partnerInfo.avatar" class="call-avatar pulse" />
             <h2 class="call-name">{{ partnerInfo.name }}</h2>
             <p class="call-timer">{{ formatDuration(callDurationSeconds) }}</p>
           </div>
 
           <div class="call-controls">
-        <el-button :type="isMuted ? 'danger' : 'info'" :icon="isMuted ? MuteNotification : Microphone" circle @click="toggleMute" />
-        <el-button type="danger" :icon="Close" circle @click="handleHangup" class="hangup-btn" />
-        <el-button v-if="callType === 'video'" :type="isCameraOff ? 'danger' : 'info'" :icon="isCameraOff ? VideoPlay : VideoCamera" circle @click="toggleCamera" />
-      </div>
+            <div class="control-item">
+              <el-button :type="isMuted ? 'danger' : 'info'" :icon="isMuted ? MuteNotification : Microphone" circle @click="toggleMute" class="control-btn" />
+              <span>{{ isMuted ? '取消静音' : '静音' }}</span>
+            </div>
+            <div class="control-item">
+              <el-button type="danger" :icon="Close" circle @click="handleHangup" class="hangup-btn" />
+              <span>挂断</span>
+            </div>
+            <div class="control-item" v-if="callType === 'video'">
+              <el-button :type="isCameraOff ? 'danger' : 'info'" :icon="isCameraOff ? VideoPlay : VideoCamera" circle @click="toggleCamera" class="control-btn" />
+              <span>{{ isCameraOff ? '摄像头' : '摄像头' }}</span>
+            </div>
+          </div>
         </div>
       </div>
     </transition>
@@ -235,7 +268,9 @@ import {
   VideoCamera,
   Phone,
   Close,
-  Check,
+  Refresh,
+  Loading,
+  Warning,
   MuteNotification
 } from '@element-plus/icons-vue';
 import { TextMessage } from 'leancloud-realtime';
@@ -245,7 +280,9 @@ import AV from 'leancloud-storage';
 import { 
   globalConversation, 
   globalIsOnline, 
+  isPartnerOnline as partnerOnlineState,
   isConnecting, 
+  isPartnerTyping,
   currentUser, 
   messages,
   initChat,
@@ -253,7 +290,8 @@ import {
   saveMessages,
   loadLocalHistory,
   user1,
-  user2
+  user2,
+  CALL_RING_URL
 } from '../services/chatManager';
 import { 
   callStatus, 
@@ -276,10 +314,11 @@ import {
 const { ImageMessage, AudioMessage } = RealtimeModule as any;
 
 const router = useRouter();
-const messageListRef = ref<HTMLElement | null>(null);
+const messageListRef = ref<any>(null);
 const localVideoRef = ref<HTMLVideoElement | null>(null);
 const remoteVideoRef = ref<HTMLVideoElement | null>(null);
 const remoteAudioRef = ref<HTMLAudioElement | null>(null);
+const fileInput = ref<HTMLInputElement | null>(null);
 
 // 设置 WebRTC 信令发送器
 setSignalingSender(async (data, options = { transient: true }) => {
@@ -299,7 +338,7 @@ setCallLogSender(async (logData) => {
 });
 
 const inputMsg = ref('');
-const isPartnerOnline = globalIsOnline;
+const isPartnerOnline = partnerOnlineState;
 const isDev = ref(true); 
 const isInitialLoading = ref(false);
 const isRecording = ref(false);
@@ -307,6 +346,43 @@ const showIdentityDialog = ref(false);
 
 const callDuration = ref(0);
 let callTimer: any = null;
+// 正在输入状态发送逻辑
+let lastTypingTime = 0;
+watch(inputMsg, (newVal) => {
+  if (newVal && Date.now() - lastTypingTime > 2000) {
+    lastTypingTime = Date.now();
+    sendTypingSignal();
+  }
+});
+
+const sendTypingSignal = async () => {
+  if (globalConversation.value) {
+    try {
+      const msg = new TextMessage('__TYPING__');
+      // 使用 transient 参数发送暂态消息，不存储在历史记录中
+      await globalConversation.value.send(msg, { transient: true });
+    } catch (e) {
+      // 忽略发送失败
+    }
+  }
+};
+
+let ringAudio: HTMLAudioElement | null = null;
+
+const playRing = () => {
+  if (!ringAudio) {
+    ringAudio = new Audio(CALL_RING_URL);
+    ringAudio.loop = true;
+  }
+  ringAudio.play().catch(() => {});
+};
+
+const stopRing = () => {
+  if (ringAudio) {
+    ringAudio.pause();
+    ringAudio.currentTime = 0;
+  }
+};
 
 const partnerInfo = computed(() => {
   // 这里必须实时响应 currentUser 的变化
@@ -337,6 +413,12 @@ watch([remoteStream, remoteAudioRef], ([stream, audioEl]) => {
 
 // 监听通话状态
 watch(callStatus, (status) => {
+  if (status === 'calling' || status === 'receiving') {
+    playRing();
+  } else {
+    stopRing();
+  }
+
   if (status === 'connected') {
     callDurationSeconds.value = 0;
     callTimer = setInterval(() => {
@@ -434,18 +516,40 @@ const sendMessage = async () => {
   const text = inputMsg.value.trim();
   inputMsg.value = '';
 
+  // 创建临时消息用于即时显示
+  const tempId = 'temp_' + Date.now();
+  const tempMsg = {
+    id: tempId,
+    from: currentUser.value.id,
+    sender: currentUser.value.name,
+    avatar: currentUser.value.avatar,
+    type: 'mine',
+    contentType: 'text',
+    content: text,
+    status: 'sending',
+    time: Date.now()
+  };
+  
+  messages.value.push(tempMsg);
+  scrollToBottom();
+
   try {
     const message = new TextMessage(text);
     await globalConversation.value.send(message);
     
-    const newMsg = parseMessage(message);
-    if (!messages.value.find(m => m.id === newMsg.id)) {
-      messages.value.push(newMsg);
+    // 发送成功，更新消息状态和 ID
+    const index = messages.value.findIndex(m => m.id === tempId);
+    if (index !== -1) {
+      const realMsg = parseMessage(message);
+      messages.value[index] = realMsg;
       saveMessages();
     }
-    scrollToBottom();
   } catch (error: any) {
-    inputMsg.value = text;
+    // 发送失败，更新状态
+    const index = messages.value.findIndex(m => m.id === tempId);
+    if (index !== -1) {
+      messages.value[index].status = 'error';
+    }
     ElMessage.error('消息发送失败: ' + (error.message || '未知错误'));
   }
 };
@@ -458,15 +562,34 @@ const handleImageUpload = async (uploadFile: any) => {
 
   try {
     const file = new AV.File(uploadFile.name, uploadFile.raw);
+    
+    // 创建临时消息
+    const tempId = 'temp_' + Date.now();
+    const tempMsg = {
+      id: tempId,
+      from: currentUser.value.id,
+      sender: currentUser.value.name,
+      avatar: currentUser.value.avatar,
+      type: 'mine',
+      contentType: 'image',
+      content: URL.createObjectURL(uploadFile.raw), // 预览图
+      status: 'sending',
+      time: Date.now()
+    };
+    messages.value.push(tempMsg);
+    scrollToBottom();
+
     await file.save();
     
     const message = new ImageMessage(file);
     await globalConversation.value.send(message);
 
-    const newMsg = parseMessage(message);
-    messages.value.push(newMsg);
-    saveMessages();
-    scrollToBottom();
+    const index = messages.value.findIndex(m => m.id === tempId);
+    if (index !== -1) {
+      const realMsg = parseMessage(message);
+      messages.value[index] = realMsg;
+      saveMessages();
+    }
   } catch (error) {
     ElMessage.error('图片发送失败');
   }
@@ -650,6 +773,17 @@ const goBack = () => {
   color: #4caf50;
 }
 
+.refresh-icon {
+  margin-left: 4px;
+  font-size: 12px;
+  vertical-align: middle;
+  cursor: pointer;
+}
+
+.refresh-icon:hover {
+  color: #e63946;
+}
+
 .chat-status.online::before {
   content: '●';
   margin-right: 4px;
@@ -799,6 +933,18 @@ const goBack = () => {
   color: #999;
 }
 
+.chat-status.typing {
+  color: #ff80ab;
+  font-weight: bold;
+  animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+  0% { opacity: 0.6; }
+  50% { opacity: 1; }
+  100% { opacity: 0.6; }
+}
+
 .bubble {
   padding: 10px 15px;
   border-radius: 18px;
@@ -806,6 +952,39 @@ const goBack = () => {
   line-height: 1.5;
   word-break: break-all;
   box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.message-status {
+  position: absolute;
+  left: -24px;
+  display: flex;
+  align-items: center;
+}
+
+.mine .message-status {
+  left: auto;
+  right: -24px;
+}
+
+.status-icon {
+  font-size: 16px;
+  color: #909399;
+}
+
+.status-icon.error {
+  color: #f56c6c;
+}
+
+.is-loading {
+  animation: rotating 2s linear infinite;
+}
+
+@keyframes rotating {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 
 .mine .bubble {
@@ -994,16 +1173,35 @@ const goBack = () => {
   left: 0;
   width: 100vw;
   height: 100vh;
-  background: #1a1a1a;
   z-index: 2000;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   color: white;
+  overflow: hidden;
+}
+
+.call-bg-blur {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-size: cover;
+  background-position: center;
+  filter: blur(40px) brightness(0.6);
+  transform: scale(1.2);
+  z-index: -1;
 }
 
 .call-pending {
+  text-align: center;
+  width: 100%;
+  padding-top: 100px;
+}
+
+.call-user-info {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1011,7 +1209,7 @@ const goBack = () => {
 }
 
 .call-avatar {
-  border: 4px solid rgba(255, 255, 255, 0.2);
+  border: 4px solid rgba(255, 255, 255, 0.3);
 }
 
 .call-avatar.pulse {
@@ -1019,31 +1217,43 @@ const goBack = () => {
 }
 
 @keyframes avatarPulse {
-  0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(230, 57, 70, 0.4); }
-  70% { transform: scale(1.05); box-shadow: 0 0 0 20px rgba(230, 57, 70, 0); }
-  100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(230, 57, 70, 0); }
+  0% { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.4); }
+  70% { box-shadow: 0 0 0 20px rgba(255, 255, 255, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0); }
 }
 
 .call-name {
-  font-size: 24px;
-  font-weight: bold;
+  font-size: 28px;
+  margin: 0;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
 }
 
 .call-status-text {
   font-size: 16px;
-  color: #ccc;
+  opacity: 0.9;
 }
 
 .call-actions {
   display: flex;
-  gap: 40px;
-  margin-top: 40px;
+  justify-content: center;
+  gap: 60px;
+  width: 100%;
+  margin-top: auto;
+  padding-bottom: 100px;
+}
+
+.action-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  font-size: 14px;
 }
 
 .action-btn {
-  width: 64px;
-  height: 64px;
-  font-size: 24px;
+  width: 72px;
+  height: 72px;
+  font-size: 32px;
 }
 
 .call-connected {
@@ -1052,46 +1262,7 @@ const goBack = () => {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: space-between;
-  padding: 40px 0;
-}
-
-.video-container {
-  position: relative;
-  width: 100%;
-  height: 100%;
-  background: black;
-}
-
-.remote-video {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.video-timer {
-  position: absolute;
-  top: 20px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: rgba(0, 0, 0, 0.5);
-  color: white;
-  padding: 4px 12px;
-  border-radius: 20px;
-  font-size: 16px;
-  z-index: 10;
-}
-
-.local-video {
-  position: absolute;
-  top: 20px;
-  right: 20px;
-  width: 120px;
-  height: 160px;
-  object-fit: cover;
-  border-radius: 8px;
-  border: 2px solid white;
-  background: #333;
+  justify-content: center;
 }
 
 .voice-container {
@@ -1102,24 +1273,79 @@ const goBack = () => {
   margin-top: 100px;
 }
 
-.call-timer {
-  font-size: 20px;
-  font-family: monospace;
-}
-
 .call-controls {
   display: flex;
-  gap: 30px;
+  justify-content: center;
+  align-items: center;
+  gap: 40px;
+  width: 100%;
+  margin-top: auto;
+  padding-bottom: 80px;
   z-index: 10;
 }
 
-.call-controls .el-button {
-  width: 56px;
-  height: 56px;
-  font-size: 20px;
+.control-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  opacity: 0.9;
+}
+
+.control-btn {
+  width: 60px;
+  height: 60px;
+  font-size: 24px;
 }
 
 .hangup-btn {
-  transform: scale(1.2);
+  width: 72px;
+  height: 72px;
+  font-size: 32px;
 }
+
+.video-container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  background: #000;
+}
+
+.remote-video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.local-video-wrapper {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  width: 120px;
+  height: 180px;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+  border: 2px solid rgba(255, 255, 255, 0.2);
+}
+
+.local-video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.video-timer {
+  position: absolute;
+  top: 40px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.5);
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 14px;
+}
+
+
 </style>

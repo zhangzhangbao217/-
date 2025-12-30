@@ -15,6 +15,7 @@ const APP_KEY = 'FyOvCD2YFzhmbeabWLjLeeGz';
 const SERVER_URL = 'https://il767g7c.lc-cn-n1-shared.com';
 const CONVERSATION_ID = 'sweet_love_chat_v1';
 const NOTIFY_SOUND_URL = 'https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3';
+export const CALL_RING_URL = 'https://assets.mixkit.co/active_storage/sfx/1359/1359-preview.mp3';
 
 // 用户定义
 export const user1 = reactive({
@@ -35,7 +36,35 @@ export const user2 = reactive({
 export const globalChatClient = ref<any>(null);
 export const globalConversation = ref<any>(null);
 export const globalIsOnline = ref(false);
+export const isPartnerOnline = ref(false);
 export const isConnecting = ref(false);
+export const isPartnerTyping = ref(false);
+let typingTimer: any = null;
+let heartbeatTimer: any = null;
+let partnerOnlineTimer: any = null;
+
+// 开启心跳检查
+const startHeartbeat = () => {
+  if (heartbeatTimer) clearInterval(heartbeatTimer);
+  heartbeatTimer = setInterval(async () => {
+    if (globalChatClient.value && globalChatClient.value.status === 'opened') {
+      try {
+        // 简单尝试获取会话信息作为心跳
+        await globalChatClient.value.getConversation(CONVERSATION_ID);
+        globalIsOnline.value = true;
+        
+        // 发送自己的在线状态给对方
+        if (globalConversation.value) {
+          const msg = new TextMessage('__ONLINE__');
+          globalConversation.value.send(msg, { transient: true }).catch(() => {});
+        }
+      } catch (e) {
+        console.warn('心跳检查失败，尝试重连...');
+        initChat(true);
+      }
+    }
+  }, 30000); // 每 30 秒检查一次
+};
 
 // 初始化当前用户：尝试从本地存储恢复，默认 user1
 const getInitialUser = () => {
@@ -151,6 +180,7 @@ export const initChat = async (silent = false) => {
 
     globalIsOnline.value = true;
     setupGlobalListeners();
+    startHeartbeat();
     
     // 监听页面可见性变化，回到前台时立即同步（确保只绑定一次）
     if (!(window as any).visibilityListenerBound) {
@@ -207,10 +237,29 @@ const setupGlobalListeners = () => {
   globalChatClient.value.off('message');
   globalChatClient.value.on('message', (message: any) => {
     // 拦截信令消息
-    if (message instanceof TextMessage && message.getText().startsWith('__SIGNAL__:')) {
-      const signalData = JSON.parse(message.getText().replace('__SIGNAL__:', ''));
-      handleSignaling(signalData);
-      return; // 信令消息不显示在聊天列表中
+    if (message instanceof TextMessage) {
+      const text = message.getText();
+      if (text.startsWith('__SIGNAL__:')) {
+        const signalData = JSON.parse(text.replace('__SIGNAL__:', ''));
+        handleSignaling(signalData);
+        return;
+      }
+      if (text === '__TYPING__') {
+        isPartnerTyping.value = true;
+        if (typingTimer) clearTimeout(typingTimer);
+        typingTimer = setTimeout(() => {
+          isPartnerTyping.value = false;
+        }, 3000);
+        return;
+      }
+      if (text === '__ONLINE__') {
+        isPartnerOnline.value = true;
+        if (partnerOnlineTimer) clearTimeout(partnerOnlineTimer);
+        partnerOnlineTimer = setTimeout(() => {
+          isPartnerOnline.value = false;
+        }, 65000); // 如果 65 秒没收到心跳，认为离线
+        return;
+      }
     }
 
     const parsedMsg = parseMessage(message);
@@ -284,6 +333,7 @@ export const parseMessage = (msg: any) => {
     contentType,
     content,
     duration,
+    status: 'sent',
     time: msg.timestamp ? (msg.timestamp instanceof Date ? msg.timestamp.getTime() : msg.timestamp) : Date.now()
   };
 };
