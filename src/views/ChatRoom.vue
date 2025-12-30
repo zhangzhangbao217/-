@@ -268,6 +268,7 @@ import {
   VideoCamera,
   Phone,
   Close,
+  Check,
   Refresh,
   Loading,
   Warning,
