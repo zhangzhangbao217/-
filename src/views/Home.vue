@@ -1167,10 +1167,32 @@ onUnmounted(() => {
 @media (max-width: 768px) {
   .home-header {
     padding: 0 15px !important;
+    background: rgba(255, 255, 255, 0.98) !important;
+    box-shadow: 0 2px 15px rgba(255, 182, 193, 0.2) !important;
+  }
+
+  .menu-toggle {
+    font-size: 26px !important;
+    color: #e63946 !important;
+    background: rgba(230, 57, 70, 0.12) !important;
+    box-shadow: 0 2px 10px rgba(230, 57, 70, 0.15);
+    padding: 8px !important;
   }
 
   .app-title {
-    font-size: 16px !important;
+    font-size: 15px !important;
+    max-width: 180px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .header-right {
+    gap: 8px !important;
+  }
+
+  .username {
+    display: none;
   }
 
   .home-aside {
@@ -1179,7 +1201,9 @@ onUnmounted(() => {
     top: 60px;
     left: 0;
     z-index: 1001;
-    box-shadow: 4px 0 15px rgba(255, 192, 203, 0.3);
+    background-color: rgba(255, 255, 255, 0.98) !important;
+    backdrop-filter: blur(10px) !important;
+    box-shadow: 10px 0 25px rgba(255, 182, 193, 0.3);
   }
   
   .home-aside.is-mobile-hidden {
@@ -1193,6 +1217,17 @@ onUnmounted(() => {
     width: 200px !important;
     transform: translateX(0);
     opacity: 1;
+  }
+
+  :deep(.el-menu-item) {
+    margin: 8px 12px !important;
+    height: 50px !important;
+    line-height: 50px !important;
+    font-size: 15px !important;
+  }
+
+  :deep(.el-menu-item .el-icon) {
+    font-size: 22px !important;
   }
 
   .mobile-mask {
