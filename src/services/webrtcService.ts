@@ -20,6 +20,8 @@ export const setSignalingSender = (sender: (data: any) => Promise<void>) => {
 
 let peerConnection: RTCPeerConnection | null = null;
 let pendingCandidates: RTCIceCandidateInit[] = [];
+let callInviteTimer: any = null;
+let callTimeoutTimer: any = null;
 
 const ICE_SERVERS = {
   iceServers: [
@@ -29,7 +31,12 @@ const ICE_SERVERS = {
     { urls: 'stun:stun.xten.com' },
     { urls: 'stun:stun.rixtelecom.se' },
     { urls: 'stun:stun.schlund.de' },
+    { urls: 'stun:stun.ideasip.com' },
+    { urls: 'stun:stun.voiparound.com' },
+    { urls: 'stun:stun.voipbuster.com' },
+    { urls: 'stun:stun.voipstunt.com' },
   ],
+  iceCandidatePoolSize: 10,
 };
 
 // 发送信令消息
@@ -111,12 +118,25 @@ const createPeerConnection = () => {
     }
   };
 
+  peerConnection.oniceconnectionstatechange = () => {
+    console.log('ICE 状态变化:', peerConnection?.iceConnectionState);
+    if (peerConnection?.iceConnectionState === 'failed') {
+      console.log('ICE 连接失败，尝试重启 ICE...');
+      peerConnection.restartIce();
+    }
+  };
+
   peerConnection.onconnectionstatechange = () => {
     console.log('Connection state:', peerConnection?.connectionState);
     if (peerConnection?.connectionState === 'disconnected' || 
         peerConnection?.connectionState === 'failed' || 
         peerConnection?.connectionState === 'closed') {
-      handleHangup(false);
+      // 延迟检查，防止瞬时断连导致挂断
+      setTimeout(() => {
+        if (peerConnection?.connectionState !== 'connected' && callStatus.value === 'connected') {
+          handleHangup(false);
+        }
+      }, 3000);
     }
   };
 };
@@ -136,11 +156,36 @@ export const startCall = async (type: CallType) => {
   const offer = await peerConnection!.createOffer();
   await peerConnection!.setLocalDescription(offer);
 
-  await sendSignalingMessage({
+  const signalData = {
     type: 'offer',
     offer,
-    callType: type
-  });
+    callType: type,
+    timestamp: Date.now()
+  };
+
+  // 发送初始邀请
+  await sendSignalingMessage(signalData);
+
+  // 增加心跳重发机制：每 3 秒重发一次邀请，直到对方响应或超时
+  let retryCount = 0;
+  callInviteTimer = setInterval(async () => {
+    if (callStatus.value === 'calling' && retryCount < 10) {
+      console.log('重发通话邀请...', retryCount + 1);
+      await sendSignalingMessage(signalData);
+      retryCount++;
+    } else {
+      clearInterval(callInviteTimer);
+    }
+  }, 3000);
+
+  // 30秒无人接听自动挂断
+  callTimeoutTimer = setTimeout(() => {
+    if (callStatus.value === 'calling') {
+      console.log('通话超时未接听');
+      alert('对方暂时无人接听');
+      handleHangup();
+    }
+  }, 30000);
 };
 
 // 接听呼叫
@@ -182,6 +227,18 @@ export const acceptCall = async () => {
 
 // 挂断
 export const handleHangup = (shouldNotify: any = true) => {
+  console.log('正在执行挂断清理...');
+  
+  // 清理所有定时器
+  if (callInviteTimer) {
+    clearInterval(callInviteTimer);
+    callInviteTimer = null;
+  }
+  if (callTimeoutTimer) {
+    clearTimeout(callTimeoutTimer);
+    callTimeoutTimer = null;
+  }
+
   // 如果是点击事件，shouldNotify 会是事件对象，也是 true
   const notify = typeof shouldNotify === 'boolean' ? shouldNotify : true;
   
@@ -190,18 +247,29 @@ export const handleHangup = (shouldNotify: any = true) => {
   }
 
   if (localStream.value) {
-    localStream.value.getTracks().forEach(track => track.stop());
+    localStream.value.getTracks().forEach(track => {
+      track.stop();
+      console.log('停止本地轨道:', track.kind);
+    });
     localStream.value = null;
   }
   
   if (remoteStream.value) {
-    remoteStream.value.getTracks().forEach(track => track.stop());
+    remoteStream.value.getTracks().forEach(track => {
+      track.stop();
+      console.log('停止远程轨道:', track.kind);
+    });
     remoteStream.value = null;
   }
   
   if (peerConnection) {
+    peerConnection.ontrack = null;
+    peerConnection.onicecandidate = null;
+    peerConnection.onconnectionstatechange = null;
+    peerConnection.oniceconnectionstatechange = null;
     peerConnection.close();
     peerConnection = null;
+    console.log('PeerConnection 已关闭');
   }
 
   callStatus.value = 'idle';
@@ -237,11 +305,20 @@ export const handleSignaling = async (data: any) => {
 
   switch (type) {
     case 'offer':
-      if (callStatus.value !== 'idle') {
+      if (callStatus.value !== 'idle' && callStatus.value !== 'receiving') {
         // 忙线中，自动拒绝
         sendSignalingMessage({ type: 'busy' });
         return;
       }
+      
+      // 如果已经在显示接收界面，且是同一个呼叫的重发，则不重复处理逻辑
+      if (callStatus.value === 'receiving') {
+        const pending = sessionStorage.getItem('pending_offer');
+        if (pending && JSON.stringify(offer) === pending) {
+          return;
+        }
+      }
+
       callType.value = incomingType;
       callStatus.value = 'receiving';
       // 先保存 offer，等接听时再处理
@@ -250,6 +327,10 @@ export const handleSignaling = async (data: any) => {
 
     case 'answer':
       if (peerConnection && callStatus.value === 'calling') {
+        // 停止重发邀请和超时计时
+        if (callInviteTimer) clearInterval(callInviteTimer);
+        if (callTimeoutTimer) clearTimeout(callTimeoutTimer);
+        
         await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
         console.log('成功设置 RemoteDescription (Answer)');
         
