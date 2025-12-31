@@ -10,6 +10,7 @@ const ASSETS = [
 
 // 安装 Service Worker 并缓存资源
 self.addEventListener('install', (event) => {
+  self.skipWaiting(); // 强制跳过等待，立即进入激活状态
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
       return cache.addAll(ASSETS);
@@ -20,15 +21,18 @@ self.addEventListener('install', (event) => {
 // 激活 Service Worker 并清理旧缓存
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then((cacheNames) => {
-      return Promise.all(
-        cacheNames.map((name) => {
-          if (name !== CACHE_NAME) {
-            return caches.delete(name);
-          }
-        })
-      );
-    })
+    Promise.all([
+      self.clients.claim(), // 立即接管所有受控客户端（页面）
+      caches.keys().then((cacheNames) => {
+        return Promise.all(
+          cacheNames.map((name) => {
+            if (name !== CACHE_NAME) {
+              return caches.delete(name);
+            }
+          })
+        );
+      })
+    ])
   );
 });
 
@@ -52,8 +56,11 @@ self.addEventListener('message', (event) => {
       badge: '/logo.png', // 顶部状态栏小图标
       data,
       vibrate: [200, 100, 200],
+      tag: 'chat-message', // 相同 tag 的通知会叠加，防止通知刷屏
+      renotify: true,      // 新通知到达时依然震动/提醒
+      requireInteraction: false,
       actions: [
-        { action: 'open', title: '去回复' }
+        { action: 'open', title: '立即回复' }
       ]
     };
 

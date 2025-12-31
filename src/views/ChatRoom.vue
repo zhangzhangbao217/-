@@ -18,6 +18,7 @@
             <el-button :icon="MoreFilled" circle class="header-btn" />
             <template #dropdown>
               <el-dropdown-menu>
+                <el-dropdown-item command="test_notify">测试后台通知</el-dropdown-item>
                 <el-dropdown-item command="clear">清空聊天记录</el-dropdown-item>
                 <el-dropdown-item command="export">导出聊天记录</el-dropdown-item>
               </el-dropdown-menu>
@@ -335,7 +336,17 @@
         </div>
 
         <div class="rp-detail-footer" v-if="isRedPacketOpened">
-          <span @click="showRedPacketDetail = false">查看领取详情 ></span>
+          <div class="rp-record-list">
+            <div class="rp-record-item">
+              <el-avatar :size="24" :src="currentUser.avatar" />
+              <div class="rp-record-info">
+                <p class="rp-record-name">{{ currentUser.name }}</p>
+                <p class="rp-record-time">{{ formatTime(Date.now()) }}</p>
+              </div>
+              <p class="rp-record-amount" v-if="currentRedPacket?.type === 'red_packet'">{{ currentRedPacket?.amount }}元</p>
+            </div>
+          </div>
+          <span @click="showRedPacketDetail = false" class="rp-view-all">查看领取详情 ></span>
         </div>
 
         <div class="rp-close-outer" @click="showRedPacketDetail = false">
@@ -607,17 +618,33 @@ const confirmOpenRedPacket = () => {
     isOpeningRedPacket.value = false;
     isRedPacketOpened.value = true;
     
+    // 播放音效
+    const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2019/2019-preview.mp3');
+    audio.volume = 0.6;
+    audio.play().catch(() => {});
+
     if (currentRedPacket.value.msgId) {
       openedRedPacketIds.value.add(currentRedPacket.value.msgId);
     }
     
-    // 可以在这里发送一个“已领取”的暂态消息告知对方
+    // 发送一个“已领取”的暂态消息告知对方
     if (globalConversation.value && currentRedPacket.value.type === 'red_packet') {
       const notifyMsg = new TextMessage(`__RP_RECEIVED__:${JSON.stringify({
         amount: currentRedPacket.value.amount,
-        title: currentRedPacket.value.title
+        title: currentRedPacket.value.title,
+        packetId: currentRedPacket.value.msgId
       })}`);
       globalConversation.value.send(notifyMsg, { transient: true }).catch(() => {});
+      
+      // 自己也本地显示一条系统消息
+      const systemMsg = {
+        id: 'sys_' + Date.now(),
+        contentType: 'system',
+        content: `你领取了 ${currentRedPacket.value.sender} 的红包`,
+        time: Date.now()
+      };
+      messages.value.push(systemMsg);
+      saveMessages();
     }
   }, 1200);
 };
@@ -1043,7 +1070,27 @@ const handleToggleUser = async () => {
 };
 
 const handleMoreCommand = async (command: string) => {
-  if (command === 'clear') {
+  if (command === 'test_notify') {
+    ElMessage.info('将在 5 秒后发送测试通知，请立即将 App 切换到后台或锁屏');
+    setTimeout(() => {
+      if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+        navigator.serviceWorker.controller.postMessage({
+          type: 'SHOW_NOTIFICATION',
+          payload: {
+            title: '💝 恋爱窝测试通知',
+            body: '看到这条消息说明你的后台通知配置成功啦！',
+            icon: currentUser.value.avatar
+          }
+        });
+      } else {
+        // 如果 SW 没准备好，尝试直接通知
+        new Notification('💝 恋爱窝测试通知', {
+          body: 'Service Worker 未就绪，这是直接通知测试',
+          icon: currentUser.value.avatar
+        });
+      }
+    }, 5000);
+  } else if (command === 'clear') {
     ElMessageBox.confirm('确定要清空所有聊天记录吗？', '提示', {
       type: 'warning'
     }).then(() => {
@@ -1823,8 +1870,49 @@ const goBack = () => {
   text-align: center;
   color: #576b95;
   font-size: 14px;
-  cursor: pointer;
   z-index: 2;
+  border-top: 1px solid rgba(0,0,0,0.05);
+  margin-top: 20px;
+}
+
+.rp-record-list {
+  text-align: left;
+  margin-bottom: 20px;
+}
+
+.rp-record-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 0;
+}
+
+.rp-record-info {
+  flex: 1;
+}
+
+.rp-record-name {
+  font-size: 14px;
+  color: #333;
+  font-weight: 500;
+  margin-bottom: 2px;
+}
+
+.rp-record-time {
+  font-size: 11px;
+  color: #999;
+}
+
+.rp-record-amount {
+  font-size: 14px;
+  color: #333;
+  font-weight: 500;
+}
+
+.rp-view-all {
+  cursor: pointer;
+  display: inline-block;
+  margin-top: 10px;
 }
 
 .rp-close-outer {
@@ -1833,9 +1921,28 @@ const goBack = () => {
   left: 50%;
   transform: translateX(-50%);
   color: white;
-  font-size: 32px;
+  font-size: 30px;
   cursor: pointer;
   opacity: 0.8;
+}
+
+.rp-close-outer:hover {
+  opacity: 1;
+}
+
+/* 消息进场动画 */
+.message-item {
+  animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes popIn {
+  from { transform: scale(0.8); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 .rp-close-outer:hover {
