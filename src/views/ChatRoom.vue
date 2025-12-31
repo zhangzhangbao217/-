@@ -636,7 +636,9 @@ const confirmOpenRedPacket = () => {
     audio.play().catch(() => {});
 
     if (currentRedPacket.value.msgId) {
-      openedRedPacketIds.value.add(currentRedPacket.value.msgId);
+      const newSet = new Set(openedRedPacketIds.value);
+      newSet.add(currentRedPacket.value.msgId);
+      openedRedPacketIds.value = newSet;
     }
     
     // 发送一个“已领取”的暂态消息告知对方
@@ -648,15 +650,18 @@ const confirmOpenRedPacket = () => {
       })}`);
       globalConversation.value.send(notifyMsg, { transient: true }).catch(() => {});
       
-      // 自己也本地显示一条系统消息
-      const systemMsg = {
-        id: 'sys_' + Date.now(),
-        contentType: 'system',
-        content: `你领取了 ${currentRedPacket.value.sender} 的红包`,
-        time: Date.now()
-      };
-      messages.value.push(systemMsg);
-      saveMessages();
+      // 领取方本地显示一条系统消息 (增加唯一 ID 防止重复)
+      const sysMsgId = `sys_rp_rcv_${currentRedPacket.value.msgId}`;
+      if (!messages.value.find(m => m.id === sysMsgId)) {
+        const systemMsg = {
+          id: sysMsgId,
+          contentType: 'system',
+          content: `你领取了 ${currentRedPacket.value.sender} 的红包`,
+          time: Date.now()
+        };
+        messages.value.push(systemMsg);
+        saveMessages();
+      }
     }
   }, 1200);
 };

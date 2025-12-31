@@ -39,7 +39,13 @@ export const globalIsOnline = ref(false);
 export const isPartnerOnline = ref(false);
 export const isConnecting = ref(false);
 export const isPartnerTyping = ref(false);
-export const openedRedPacketIds = ref(new Set<string>());
+export const openedRedPacketIds = ref(new Set<string>(JSON.parse(localStorage.getItem(`opened_rp_ids_${localStorage.getItem('chat_user_id') || user1.id}`) || '[]')));
+
+export const saveOpenedRpIds = () => {
+  if (currentUser.value) {
+    localStorage.setItem(`opened_rp_ids_${currentUser.value.id}`, JSON.stringify(Array.from(openedRedPacketIds.value)));
+  }
+};
 let typingTimer: any = null;
 let heartbeatTimer: any = null;
 let partnerOnlineTimer: any = null;
@@ -79,7 +85,8 @@ export const currentUser = ref(getInitialUser());
 // 初始化时从本地存储加载历史记录
 const getInitialMessages = () => {
   try {
-    const savedMessages = localStorage.getItem('chat_history');
+    const userId = localStorage.getItem('chat_user_id') || user1.id;
+    const savedMessages = localStorage.getItem(`chat_history_${userId}`);
     if (!savedMessages) return [];
     const parsed = JSON.parse(savedMessages);
     
@@ -108,7 +115,10 @@ export const loadLocalHistory = () => {
 };
 
 export const saveMessages = () => {
-  localStorage.setItem('chat_history', JSON.stringify(messages.value.slice(-100)));
+  if (currentUser.value) {
+    localStorage.setItem(`chat_history_${currentUser.value.id}`, JSON.stringify(messages.value));
+    saveOpenedRpIds();
+  }
 };
 
 // 同步云端消息
@@ -355,23 +365,32 @@ const setupGlobalListeners = () => {
         return;
       }
       if (text.startsWith('__RP_RECEIVED__:')) {
+        // 如果是自己发出的“已领取”通知，不要给自己本地重复添加系统消息
+        if (message.from === currentUser.value.id) return;
+
         try {
           const data = JSON.parse(text.replace('__RP_RECEIVED__:', ''));
           const senderName = message.from === user1.id ? user1.name : user2.name;
           
           // 标记红包为已领取
-          if (data.packetId) {
-            openedRedPacketIds.value.add(data.packetId);
-          }
+            if (data.packetId) {
+              const newSet = new Set(openedRedPacketIds.value);
+              newSet.add(data.packetId);
+              openedRedPacketIds.value = newSet;
+            }
 
-          const systemMsg = {
-            id: 'sys_' + Date.now(),
-            contentType: 'system',
-            content: `${senderName}领取了你的红包`,
-            time: Date.now()
-          };
-          messages.value.push(systemMsg);
-          saveMessages();
+          // 发送方本地显示一条系统消息 (增加唯一 ID 防止重复)
+          const sysMsgId = `sys_rp_snd_${data.packetId}`;
+          if (!messages.value.find(m => m.id === sysMsgId)) {
+            const systemMsg = {
+              id: sysMsgId,
+              contentType: 'system',
+              content: `对方已领取了你的红包`,
+              time: Date.now()
+            };
+            messages.value.push(systemMsg);
+            saveMessages();
+          }
           return;
         } catch (e) {}
       }
