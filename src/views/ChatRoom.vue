@@ -33,30 +33,43 @@
         <el-tag size="small" effect="plain" type="danger">
           当前身份: {{ currentUser.name }}
         </el-tag>
+        <el-button 
+          v-if="showNotificationBtn" 
+          size="small" 
+          type="warning" 
+          link 
+          @click="requestNotificationPermission"
+        >
+          开启消息通知
+        </el-button>
       </div>
-      <div v-for="(msg, index) in messages" :key="index" 
-           :class="['message-item', msg.from === currentUser.id ? 'mine' : 'other']">
-        <el-avatar 
+      
+      <template v-for="(msg, index) in messages" :key="msg.id || index">
+        <!-- 时间戳显示：距离上一条超过 5 分钟显示 -->
+        <div v-if="shouldShowTime(index)" class="message-time-divider">
+          <span>{{ formatTime(msg.time) }}</span>
+        </div>
+
+        <div :class="['message-item', msg.from === currentUser.id ? 'mine' : 'other']">
+          <el-avatar 
             :size="40" 
             :src="msg.from === user1.id ? user1.avatar : user2.avatar" 
             :class="['avatar', msg.from === user1.id ? 'avatar-user1' : 'avatar-user2']"
           >
-            <!-- 备用显示：如果图片加载失败，显示名字首字母 -->
             {{ msg.from === user1.id ? user1.name[0] : user2.name[0] }}
           </el-avatar>
-        <div class="message-content">
-          <div class="message-info">
-            <span class="sender-name">{{ msg.from === user1.id ? user1.name : user2.name }}</span>
-            <span class="send-time">{{ formatTime(msg.time) }}</span>
-          </div>
-          <div class="bubble">
-            <!-- 发送状态标识 -->
-            <div v-if="msg.from === currentUser.id" class="message-status">
-              <el-icon v-if="msg.status === 'sending'" class="status-icon is-loading"><Loading /></el-icon>
-              <el-icon v-if="msg.status === 'error'" class="status-icon error"><Warning /></el-icon>
+          <div class="message-content">
+            <div class="message-info">
+              <span class="sender-name">{{ msg.from === user1.id ? user1.name : user2.name }}</span>
             </div>
+            <div class="bubble">
+              <!-- 发送状态标识 -->
+              <div v-if="msg.from === currentUser.id" class="message-status">
+                <el-icon v-if="msg.status === 'sending'" class="status-icon is-loading"><Loading /></el-icon>
+                <el-icon v-if="msg.status === 'error'" class="status-icon error" @click="retryMessage(msg)" title="点击重试"><Warning /></el-icon>
+              </div>
             
-            <template v-if="msg.contentType === 'text'">
+              <template v-if="msg.contentType === 'text'">
               <div class="text-content">
                 {{ msg.content }}
               </div>
@@ -71,33 +84,50 @@
               </div>
             </template>
             <template v-else-if="msg.contentType === 'call_log'">
-              <div class="call-log-content">
-                <div class="call-log-body">
-                  <el-icon class="call-icon">
-                    <VideoCamera v-if="JSON.parse(msg.content).callType === 'video'" />
-                    <Phone v-else />
-                  </el-icon>
-                  <div class="call-info">
-                    <span class="call-status">
-                      {{ 
-                        JSON.parse(msg.content).status === 'completed' ? '通话完成' :
-                        JSON.parse(msg.content).status === 'missed' ? '未接听' :
-                        JSON.parse(msg.content).status === 'declined' ? '已拒绝' : '通话结束'
-                      }}
-                    </span>
-                    <span v-if="JSON.parse(msg.content).status === 'completed'" class="call-duration">
-                      {{ formatDuration(JSON.parse(msg.content).duration) }}
-                    </span>
-                  </div>
+            <div class="call-log-content">
+              <div class="call-log-body">
+                <el-icon class="call-icon">
+                  <VideoCamera v-if="JSON.parse(msg.content).callType === 'video'" />
+                  <Phone v-else />
+                </el-icon>
+                <div class="call-info">
+                  <span class="call-status">
+                    {{ 
+                      JSON.parse(msg.content).status === 'completed' ? '通话完成' :
+                      JSON.parse(msg.content).status === 'missed' ? '未接听' :
+                      JSON.parse(msg.content).status === 'declined' ? '已拒绝' : '通话结束'
+                    }}
+                  </span>
+                  <span v-if="JSON.parse(msg.content).status === 'completed'" class="call-duration">
+                    {{ formatDuration(JSON.parse(msg.content).duration) }}
+                  </span>
                 </div>
               </div>
-            </template>
-          </div>
+            </div>
+          </template>
+          <template v-else-if="msg.contentType === 'red_packet'">
+            <div class="red-packet-bubble" @click="handleOpenRedPacket(msg)">
+              <div class="rp-content">
+                <div class="rp-icon">
+                  <el-icon><Money /></el-icon>
+                </div>
+                <div class="rp-text">
+                  <p class="rp-title">{{ JSON.parse(msg.content).title || '恭喜发财，大吉大利' }}</p>
+                  <p class="rp-desc">{{ msg.from === currentUser.id ? '查看红包' : '领取红包' }}</p>
+                </div>
+              </div>
+              <div class="rp-footer">
+                <span>{{ JSON.parse(msg.content).type === 'transfer' ? '直接转账' : '甜蜜红包' }}</span>
+              </div>
+            </div>
+          </template>
         </div>
       </div>
     </div>
+  </template>
+</div>
 
-    <!-- 输入区 -->
+<!-- 输入区 -->
     <div class="input-area">
       <div class="input-tools">
         <el-upload
@@ -127,6 +157,13 @@
           @touchstart.prevent="startRecording"
           @touchend.prevent="stopRecording"
           class="tool-btn voice-btn"
+        />
+        <el-button 
+          :icon="Money" 
+          circle 
+          class="tool-btn" 
+          @click="showPaymentDialog = true"
+          title="发红包/转账"
         />
       </div>
       <div class="input-wrapper">
@@ -175,6 +212,87 @@
           </div>
         </div>
         <p class="warning-text">⚠️ 选错身份将无法正常同步消息！</p>
+      </div>
+    </el-dialog>
+
+    <!-- 支付功能弹窗 -->
+    <el-dialog
+      v-model="showPaymentDialog"
+      title="💝 发送甜蜜红包"
+      width="320px"
+      center
+      class="payment-dialog"
+    >
+      <el-tabs v-model="paymentType" class="payment-tabs">
+        <el-tab-pane label="甜蜜红包" name="red_packet">
+          <div class="payment-form">
+            <el-input v-model="redPacketForm.amount" placeholder="金额 (¥)" type="number">
+              <template #prefix>¥</template>
+            </el-input>
+            <el-input v-model="redPacketForm.title" placeholder="恭喜发财，大吉大利" />
+            <div class="quick-amounts">
+              <el-tag @click="redPacketForm.amount = '5.20'" effect="plain">5.20</el-tag>
+              <el-tag @click="redPacketForm.amount = '13.14'" effect="plain">13.14</el-tag>
+              <el-tag @click="redPacketForm.amount = '52.00'" effect="plain">52.0</el-tag>
+              <el-tag @click="redPacketForm.amount = '66.66'" effect="plain">66.66</el-tag>
+            </div>
+            <el-button type="danger" class="pay-btn" @click="sendRedPacket('red_packet')">
+              塞钱进红包
+            </el-button>
+          </div>
+        </el-tab-pane>
+        <el-tab-pane label="直接转账" name="transfer">
+          <div class="payment-form">
+             <div class="qr-placeholder">
+               <p>请上传你的收款码，对方扫码支付</p>
+               <el-upload
+                 action="#"
+                 :auto-upload="false"
+                 :show-file-list="false"
+                 @change="handleQrUpload"
+               >
+                 <div v-if="myQrCode" class="qr-preview">
+                   <img :src="myQrCode" />
+                 </div>
+                 <el-button v-else :icon="Picture">上传收款码</el-button>
+               </el-upload>
+             </div>
+             <el-button type="success" class="pay-btn" @click="sendRedPacket('transfer')" :disabled="!myQrCode">
+               发送收款码
+             </el-button>
+          </div>
+        </el-tab-pane>
+      </el-tabs>
+    </el-dialog>
+
+    <!-- 红包详情弹窗 -->
+    <el-dialog
+      v-model="showRedPacketDetail"
+      width="300px"
+      class="rp-detail-dialog"
+      :show-close="false"
+    >
+      <div class="rp-detail-content" :class="{ 'is-opened': true }">
+        <div class="rp-header-bg"></div>
+        <div class="rp-detail-user">
+          <el-avatar :src="currentRedPacket?.avatar" :size="50" />
+          <p>{{ currentRedPacket?.sender }}的红包</p>
+        </div>
+        <div class="rp-detail-main">
+          <template v-if="currentRedPacket?.type === 'red_packet'">
+            <p class="rp-blessing">{{ currentRedPacket?.title }}</p>
+            <h1 class="rp-amount">{{ currentRedPacket?.amount }} <span>元</span></h1>
+          </template>
+          <template v-else>
+            <p class="rp-blessing">长按识别/扫码支付</p>
+            <div class="rp-qr-code">
+              <img :src="currentRedPacket?.qrCode" />
+            </div>
+          </template>
+        </div>
+        <div class="rp-close" @click="showRedPacketDetail = false">
+          <el-icon><Close /></el-icon>
+        </div>
       </div>
     </el-dialog>
 
@@ -254,7 +372,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, nextTick, watch, computed } from 'vue';
+import { ref, onMounted, onUnmounted, nextTick, watch, computed, reactive } from 'vue';
 import { useRouter } from 'vue-router';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { 
@@ -272,7 +390,8 @@ import {
   Refresh,
   Loading,
   Warning,
-  MuteNotification
+  MuteNotification,
+  Money
 } from '@element-plus/icons-vue';
 import { TextMessage } from 'leancloud-realtime';
 import * as RealtimeModule from 'leancloud-realtime';
@@ -344,6 +463,76 @@ const isDev = ref(true);
 const isInitialLoading = ref(false);
 const isRecording = ref(false);
 const showIdentityDialog = ref(false);
+const showPaymentDialog = ref(false);
+const showRedPacketDetail = ref(false);
+const paymentType = ref('red_packet');
+const myQrCode = ref('');
+const currentRedPacket = ref<any>(null);
+const redPacketForm = reactive({
+  amount: '',
+  title: ''
+});
+
+const handleQrUpload = (file: any) => {
+  myQrCode.value = URL.createObjectURL(file.raw);
+};
+
+const sendRedPacket = async (type: string) => {
+  if (type === 'red_packet' && !redPacketForm.amount) {
+    ElMessage.warning('请输入金额');
+    return;
+  }
+  
+  if (!globalConversation.value) {
+    ElMessage.error('聊天未连接');
+    return;
+  }
+
+  const packetData = {
+    type,
+    amount: redPacketForm.amount,
+    title: redPacketForm.title || '恭喜发财，大吉大利',
+    qrCode: type === 'transfer' ? myQrCode.value : null, // 真实场景应上传到服务器获取 URL
+    timestamp: Date.now()
+  };
+
+  try {
+    const msgText = `__RED_PACKET__:${JSON.stringify(packetData)}`;
+    const message = new TextMessage(msgText);
+    await globalConversation.value.send(message);
+    
+    // 手动添加到本地消息列表
+    const parsedMsg = parseMessage(message);
+    // 修正 content 为 JSON 字符串以便模板解析
+    parsedMsg.contentType = 'red_packet';
+    parsedMsg.content = JSON.stringify(packetData);
+    
+    messages.value.push(parsedMsg);
+    saveMessages();
+    scrollToBottom();
+    
+    showPaymentDialog.value = false;
+    redPacketForm.amount = '';
+    redPacketForm.title = '';
+    ElMessage.success('发送成功');
+  } catch (e) {
+    ElMessage.error('发送失败');
+  }
+};
+
+const handleOpenRedPacket = (msg: any) => {
+  try {
+    const data = JSON.parse(msg.content);
+    currentRedPacket.value = {
+      ...data,
+      sender: msg.sender,
+      avatar: msg.avatar
+    };
+    showRedPacketDetail.value = true;
+  } catch (e) {
+    console.error(e);
+  }
+};
 
 const callDuration = ref(0);
 let callTimer: any = null;
@@ -453,19 +642,29 @@ const emojis = [
   '🌟', '🔥', '💧', '🍀', '🎵', '📸', '💌', '🏠', '🌍', '🚀'
 ];
 
+const showNotificationBtn = ref(false);
+
 // 初始化加载设置
 onMounted(async () => {
+  // 检查通知权限
+  if ('Notification' in window && Notification.permission !== 'granted') {
+    showNotificationBtn.value = true;
+  }
+
   // 检查是否已选择身份
   const savedUserId = localStorage.getItem('chat_user_id');
   if (!savedUserId) {
     showIdentityDialog.value = true;
   }
 
+  isInitialLoading.value = true;
   // 确保连接已初始化
-  await initChat();
-  
-  scrollToBottom();
-  isInitialLoading.value = false;
+  initChat().finally(() => {
+    isInitialLoading.value = false;
+    nextTick(() => {
+      scrollToBottom();
+    });
+  });
 });
 
 const selectIdentity = async (user: any) => {
@@ -497,6 +696,52 @@ const scrollToBottom = () => {
       });
     }
   });
+};
+
+const requestNotificationPermission = async () => {
+  if (!('Notification' in window)) {
+    ElMessage.warning('您的浏览器不支持桌面通知');
+    return;
+  }
+  
+  try {
+    const permission = await Notification.requestPermission();
+    if (permission === 'granted') {
+      showNotificationBtn.value = false;
+      ElMessage.success('通知已开启');
+      // 尝试播放一次声音以解锁音频上下文
+      new Audio(CALL_RING_URL).play().catch(() => {});
+    } else {
+      ElMessage.warning('您拒绝了通知权限，可能无法收到新消息提醒');
+    }
+  } catch (e) {
+    console.error(e);
+  }
+};
+
+const shouldShowTime = (index: number) => {
+  if (index === 0) return true;
+  const currentMsg = messages.value[index];
+  const prevMsg = messages.value[index - 1];
+  return currentMsg.time - prevMsg.time > 5 * 60 * 1000; // 5分钟
+};
+
+const retryMessage = async (msg: any) => {
+  // 仅支持文本消息重试
+  if (msg.contentType !== 'text') {
+    ElMessage.warning('暂只支持文本消息重发，请重新发送图片/语音');
+    return;
+  }
+  
+  // 移除旧的错误消息
+  const index = messages.value.findIndex(m => m.id === msg.id);
+  if (index !== -1) {
+    messages.value.splice(index, 1);
+  }
+  
+  // 重新填入输入框并自动触发发送（或者直接调用发送逻辑）
+  inputMsg.value = msg.content;
+  await sendMessage();
 };
 
 const formatTime = (time: number) => {
@@ -868,10 +1113,26 @@ const goBack = () => {
   opacity: 0.8;
 }
 
+.message-time-divider {
+  text-align: center;
+  margin: 20px 0 10px;
+}
+
+.message-time-divider span {
+  background: rgba(0, 0, 0, 0.1);
+  color: #fff;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 12px;
+  color: #666;
+  background: #f0f0f0;
+}
+
 .message-item {
   display: flex;
   gap: 12px;
   max-width: 85%;
+  margin-bottom: 16px;
   align-items: flex-start;
 }
 
@@ -1127,6 +1388,191 @@ const goBack = () => {
   text-align: center;
 }
 
+/* 支付相关样式 */
+.red-packet-bubble {
+  background: #fa9d3b;
+  width: 240px;
+  border-radius: 10px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: transform 0.2s;
+}
+
+.red-packet-bubble:active {
+  transform: scale(0.98);
+}
+
+.rp-content {
+  display: flex;
+  align-items: center;
+  padding: 15px;
+  gap: 12px;
+}
+
+.rp-icon {
+  width: 40px;
+  height: 40px;
+  background: #fcd69f;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fa9d3b;
+  font-size: 24px;
+}
+
+.rp-text {
+  color: white;
+  flex: 1;
+}
+
+.rp-title {
+  font-size: 16px;
+  margin: 0;
+  margin-bottom: 4px;
+  font-weight: 500;
+}
+
+.rp-desc {
+  font-size: 12px;
+  margin: 0;
+  opacity: 0.9;
+}
+
+.rp-footer {
+  background: white;
+  padding: 8px 15px;
+  font-size: 12px;
+  color: #999;
+}
+
+.payment-dialog .el-dialog__body {
+  padding: 10px 20px 20px;
+}
+
+.payment-form {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.quick-amounts {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.quick-amounts .el-tag {
+  cursor: pointer;
+  min-width: 60px;
+  text-align: center;
+}
+
+.pay-btn {
+  width: 100%;
+  margin-top: 10px;
+  height: 40px;
+  font-size: 16px;
+}
+
+.qr-placeholder {
+  border: 2px dashed #eee;
+  border-radius: 8px;
+  padding: 20px;
+  text-align: center;
+  color: #999;
+}
+
+.qr-preview img {
+  width: 150px;
+  height: 150px;
+  object-fit: contain;
+}
+
+/* 红包详情弹窗 */
+.rp-detail-dialog {
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.rp-detail-dialog .el-dialog__header {
+  display: none;
+}
+
+.rp-detail-content {
+  position: relative;
+  background: #f5f5f5;
+  border-radius: 10px;
+  overflow: hidden;
+  height: 400px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.rp-header-bg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100px;
+  background: #d9594c;
+  border-radius: 0 0 50% 50%;
+}
+
+.rp-detail-user {
+  z-index: 10;
+  margin-top: 50px;
+  text-align: center;
+}
+
+.rp-detail-user p {
+  margin-top: 8px;
+  color: #666;
+  font-size: 14px;
+}
+
+.rp-detail-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+}
+
+.rp-blessing {
+  font-size: 18px;
+  color: #333;
+  margin-bottom: 20px;
+}
+
+.rp-amount {
+  font-size: 48px;
+  color: #d9594c;
+  font-weight: bold;
+}
+
+.rp-amount span {
+  font-size: 16px;
+  color: #d9594c;
+}
+
+.rp-qr-code img {
+  width: 200px;
+  height: 200px;
+  object-fit: contain;
+}
+
+.rp-close {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  color: rgba(255,255,255,0.8);
+  font-size: 24px;
+  cursor: pointer;
+  z-index: 20;
+}
 /* 滚动条美化 */
 .message-list::-webkit-scrollbar {
   width: 4px;

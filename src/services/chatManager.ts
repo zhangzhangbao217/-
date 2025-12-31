@@ -110,6 +110,70 @@ export const saveMessages = () => {
   localStorage.setItem('chat_history', JSON.stringify(messages.value.slice(-100)));
 };
 
+// 同步云端消息
+const syncCloudMessages = async () => {
+  if (!globalConversation.value) return;
+  
+  try {
+    // 获取最新的 20 条消息
+    const cloudMsgs = await globalConversation.value.queryMessages({
+      limit: 20,
+    });
+    
+    // 过滤掉暂态消息和非展示类消息
+    const validMsgs = cloudMsgs.filter((m: any) => {
+      if (m.transient) return false; // 暂态消息
+      if (m instanceof TextMessage) {
+        const text = m.getText();
+        return !text.startsWith('__SIGNAL__') && 
+               !text.startsWith('__TYPING__') && 
+               !text.startsWith('__ONLINE__');
+      }
+      return true;
+    });
+
+    const parsedCloudMsgs = validMsgs.map((m: any) => parseMessage(m));
+    
+    // 合并消息：保留本地的（可能有发送状态），添加云端新的
+    const existingIds = new Set(messages.value.map(m => m.id));
+    let hasNew = false;
+    
+    parsedCloudMsgs.forEach((cloudMsg: any) => {
+      // 检查是否已存在（通过 ID 或 timestamp 近似匹配防止重复）
+      const exists = messages.value.some(localMsg => {
+        if (localMsg.id === cloudMsg.id) return true;
+        // 如果 ID 不同但内容和时间极其接近（1秒内），也认为是同一条（可能是本地临时 ID 和云端 ID 不一致）
+        if (Math.abs(localMsg.time - cloudMsg.time) < 1000 && 
+            localMsg.content === cloudMsg.content && 
+            localMsg.from === cloudMsg.from) {
+          // 更新本地临时 ID 为云端 ID
+          if (localMsg.id.startsWith('temp_')) {
+            localMsg.id = cloudMsg.id;
+            localMsg.status = 'sent'; // 确认已发送
+          }
+          return true;
+        }
+        return false;
+      });
+
+      if (!exists) {
+        messages.value.push(cloudMsg);
+        hasNew = true;
+      }
+    });
+
+    if (hasNew) {
+      // 重新排序
+      messages.value.sort((a, b) => a.time - b.time);
+      saveMessages();
+    }
+    
+    console.log('云端消息同步完成');
+  } catch (error) {
+    console.error('同步云端消息失败:', error);
+  }
+};
+
 let realtime: any = null;
 
 // 初始化存储
@@ -178,7 +242,20 @@ export const initChat = async (silent = false) => {
       });
     }
 
+    // 立即同步一次云端历史消息
+    await syncCloudMessages();
+
     globalIsOnline.value = true;
+    
+    // 连接成功后，立即广播一次在线状态，并查询对方状态
+    if (globalConversation.value) {
+      const msg = new TextMessage('__ONLINE__');
+      globalConversation.value.send(msg, { transient: true }).catch(() => {});
+      
+      const queryMsg = new TextMessage('__QUERY_ONLINE__');
+      globalConversation.value.send(queryMsg, { transient: true }).catch(() => {});
+    }
+
     setupGlobalListeners();
     startHeartbeat();
     
@@ -193,6 +270,8 @@ export const initChat = async (silent = false) => {
               // 尝试获取会话，如果失败说明连接已失效
               await globalChatClient.value.getConversation(CONVERSATION_ID);
               globalIsOnline.value = true;
+              // 回到前台，同步消息
+              syncCloudMessages();
             } catch (e) {
               console.log('连接已失效，正在重新初始化...');
               globalIsOnline.value = false;
@@ -260,6 +339,20 @@ const setupGlobalListeners = () => {
         }, 65000); // 如果 65 秒没收到心跳，认为离线
         return;
       }
+      if (text === '__QUERY_ONLINE__') {
+        // 收到对方查询，立即回复我在线
+        if (globalConversation.value) {
+           const msg = new TextMessage('__ONLINE__');
+           globalConversation.value.send(msg, { transient: true }).catch(() => {});
+        }
+        // 既然对方发了查询，说明对方也在线
+        isPartnerOnline.value = true;
+        if (partnerOnlineTimer) clearTimeout(partnerOnlineTimer);
+        partnerOnlineTimer = setTimeout(() => {
+          isPartnerOnline.value = false;
+        }, 65000);
+        return;
+      }
     }
 
     const parsedMsg = parseMessage(message);
@@ -311,6 +404,15 @@ export const parseMessage = (msg: any) => {
         contentType = 'text';
         content = text;
       }
+    } else if (text.startsWith('__RED_PACKET__:')) {
+      try {
+        const packetData = JSON.parse(text.replace('__RED_PACKET__:', ''));
+        contentType = 'red_packet';
+        content = JSON.stringify(packetData);
+      } catch (e) {
+        contentType = 'text';
+        content = text;
+      }
     } else {
       contentType = 'text';
       content = text;
@@ -339,22 +441,39 @@ export const parseMessage = (msg: any) => {
 };
 
 const notifyNewMessage = (msg: any, isChatPage: boolean) => {
-  // 1. 播放提示音
+  // 1. 播放提示音 (尝试解锁 Audio Context)
   const audio = new Audio(NOTIFY_SOUND_URL);
   audio.volume = 0.5;
-  audio.play().catch(() => {});
+  audio.play().catch(e => console.log('自动播放被拦截:', e));
 
-  // 2. 浏览器系统通知 (如果页面不在前台)
+  // 2. 手机震动 (200ms)
+  if (navigator.vibrate) {
+    navigator.vibrate(200);
+  }
+
+  // 3. 浏览器系统通知 (如果页面不在前台)
   if (document.hidden) {
     if ('Notification' in window && Notification.permission === 'granted') {
-      new Notification(`💕 来自 ${msg.sender} 的新消息`, {
-        body: msg.contentType === 'text' ? msg.content : `[${msg.contentType === 'image' ? '图片' : '语音'}]`,
-        icon: msg.avatar
-      });
+      try {
+        const n = new Notification(`💕 ${msg.sender}`, {
+          body: msg.contentType === 'text' ? msg.content : `[${msg.contentType === 'image' ? '图片' : '语音'}]`,
+          icon: msg.avatar,
+          tag: 'chat-msg', // 覆盖旧通知
+          requireInteraction: false, // 不强制用户交互
+          silent: false
+        });
+        // 兼容部分移动端点击事件
+        n.onclick = () => {
+          window.focus();
+          n.close();
+        };
+      } catch (e) {
+        console.error('Notification error:', e);
+      }
     }
   }
 
-  // 3. 应用内顶部弹窗通知 (如果不在聊天页，或者页面在前台但不在聊天页)
+  // 4. 应用内顶部弹窗通知 (如果不在聊天页，或者页面在前台但不在聊天页)
   if (!isChatPage) {
     ElNotification({
       title: `新消息: ${msg.sender}`,
