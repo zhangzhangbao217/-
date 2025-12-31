@@ -27,6 +27,13 @@
       </div>
     </div>
 
+    <!-- PWA 引导提示 -->
+    <div v-if="showPWAGuide" class="pwa-guide-banner">
+      <el-icon><InfoFilled /></el-icon>
+      <span>添加到主屏幕，后台收消息更稳定</span>
+      <el-button size="small" type="primary" link @click="showPWAGuide = false">知道了</el-button>
+    </div>
+
     <!-- 消息列表 -->
     <div class="message-list" ref="messageListRef" v-loading="isInitialLoading">
       <div class="identity-notice">
@@ -50,7 +57,15 @@
           <span>{{ formatTime(msg.time) }}</span>
         </div>
 
-        <div :class="['message-item', msg.from === currentUser.id ? 'mine' : 'other']">
+        <!-- 系统消息 -->
+        <div v-if="msg.contentType === 'system'" class="system-message">
+          <span class="system-text">
+            <el-icon v-if="msg.content.includes('红包')"><Money /></el-icon>
+            {{ msg.content }}
+          </span>
+        </div>
+
+        <div v-else :class="['message-item', msg.from === currentUser.id ? 'mine' : 'other']">
           <el-avatar 
             :size="40" 
             :src="msg.from === user1.id ? user1.avatar : user2.avatar" 
@@ -106,14 +121,20 @@
             </div>
           </template>
           <template v-else-if="msg.contentType === 'red_packet'">
-            <div class="red-packet-bubble" @click="handleOpenRedPacket(msg)">
+            <div 
+              class="red-packet-bubble" 
+              :class="{ 'is-opened': openedRedPacketIds.has(msg.id) }" 
+              @click="handleOpenRedPacket(msg)"
+            >
               <div class="rp-content">
                 <div class="rp-icon">
                   <el-icon><Money /></el-icon>
                 </div>
                 <div class="rp-text">
                   <p class="rp-title">{{ JSON.parse(msg.content).title || '恭喜发财，大吉大利' }}</p>
-                  <p class="rp-desc">{{ msg.from === currentUser.id ? '查看红包' : '领取红包' }}</p>
+                  <p class="rp-desc">
+                    {{ openedRedPacketIds.has(msg.id) ? '已领取' : (msg.from === currentUser.id ? '查看红包' : '领取红包') }}
+                  </p>
                 </div>
               </div>
               <div class="rp-footer">
@@ -268,29 +289,56 @@
     <!-- 红包详情弹窗 -->
     <el-dialog
       v-model="showRedPacketDetail"
-      width="300px"
+      width="320px"
       class="rp-detail-dialog"
       :show-close="false"
+      destroy-on-close
     >
-      <div class="rp-detail-content" :class="{ 'is-opened': true }">
-        <div class="rp-header-bg"></div>
-        <div class="rp-detail-user">
-          <el-avatar :src="currentRedPacket?.avatar" :size="50" />
-          <p>{{ currentRedPacket?.sender }}的红包</p>
-        </div>
-        <div class="rp-detail-main">
-          <template v-if="currentRedPacket?.type === 'red_packet'">
-            <p class="rp-blessing">{{ currentRedPacket?.title }}</p>
-            <h1 class="rp-amount">{{ currentRedPacket?.amount }} <span>元</span></h1>
-          </template>
-          <template v-else>
-            <p class="rp-blessing">长按识别/扫码支付</p>
-            <div class="rp-qr-code">
-              <img :src="currentRedPacket?.qrCode" />
+      <div class="rp-detail-content" :class="{ 'is-opened': isRedPacketOpened }">
+        <div class="rp-top-section">
+          <div class="rp-header-bg"></div>
+          <div class="rp-detail-user">
+            <el-avatar :src="currentRedPacket?.avatar" :size="60" />
+            <p class="rp-sender-name">{{ currentRedPacket?.sender }}</p>
+            <p class="rp-send-tip" v-if="!isRedPacketOpened">给你发了一个红包</p>
+          </div>
+          
+          <div class="rp-detail-main" v-if="!isRedPacketOpened">
+            <p class="rp-blessing-large">{{ currentRedPacket?.title || '恭喜发财，大吉大利' }}</p>
+            <div 
+              class="rp-open-btn" 
+              :class="{ 'is-rotating': isOpeningRedPacket }"
+              @click="confirmOpenRedPacket"
+              v-if="currentRedPacket?.type === 'red_packet'"
+            >
+              <span>開</span>
             </div>
-          </template>
+            <div v-else class="rp-transfer-prompt">
+              <p>请长按/扫码进行转账</p>
+            </div>
+          </div>
+
+          <div class="rp-opened-main" v-else>
+            <template v-if="currentRedPacket?.type === 'red_packet'">
+              <p class="rp-blessing-small">{{ currentRedPacket?.title }}</p>
+              <h1 class="rp-amount-display">{{ currentRedPacket?.amount }}<span class="unit">元</span></h1>
+              <p class="rp-status-text">已存入零钱，可用于发红包</p>
+            </template>
+            <template v-else>
+               <div class="rp-qr-display">
+                 <img :src="currentRedPacket?.qrCode" class="rp-qr-img" />
+                 <p class="rp-qr-tip">扫码向对方转账</p>
+                 <el-button type="primary" link size="small" @click="saveQrCode">保存二维码到相册</el-button>
+               </div>
+             </template>
+          </div>
         </div>
-        <div class="rp-close" @click="showRedPacketDetail = false">
+
+        <div class="rp-detail-footer" v-if="isRedPacketOpened">
+          <span @click="showRedPacketDetail = false">查看领取详情 ></span>
+        </div>
+
+        <div class="rp-close-outer" @click="showRedPacketDetail = false">
           <el-icon><Close /></el-icon>
         </div>
       </div>
@@ -391,7 +439,8 @@ import {
   Loading,
   Warning,
   MuteNotification,
-  Money
+  Money,
+  InfoFilled
 } from '@element-plus/icons-vue';
 import { TextMessage } from 'leancloud-realtime';
 import * as RealtimeModule from 'leancloud-realtime';
@@ -465,6 +514,9 @@ const isRecording = ref(false);
 const showIdentityDialog = ref(false);
 const showPaymentDialog = ref(false);
 const showRedPacketDetail = ref(false);
+const isOpeningRedPacket = ref(false);
+const isRedPacketOpened = ref(false);
+const openedRedPacketIds = ref(new Set<string>());
 const paymentType = ref('red_packet');
 const myQrCode = ref('');
 const currentRedPacket = ref<any>(null);
@@ -526,12 +578,52 @@ const handleOpenRedPacket = (msg: any) => {
     currentRedPacket.value = {
       ...data,
       sender: msg.sender,
-      avatar: msg.avatar
+      avatar: msg.avatar,
+      fromMe: msg.from === currentUser.value.id,
+      msgId: msg.id
     };
+    
+    // 如果是自己发的，或者已经领取过（模拟），直接显示内容
+    if (currentRedPacket.value.fromMe) {
+      isRedPacketOpened.value = true;
+    } else {
+      isRedPacketOpened.value = false;
+    }
+    
+    isOpeningRedPacket.value = false;
     showRedPacketDetail.value = true;
   } catch (e) {
     console.error(e);
   }
+};
+
+const confirmOpenRedPacket = () => {
+  if (isOpeningRedPacket.value || isRedPacketOpened.value) return;
+  
+  isOpeningRedPacket.value = true;
+  
+  // 模拟旋转动画后的开启效果
+  setTimeout(() => {
+    isOpeningRedPacket.value = false;
+    isRedPacketOpened.value = true;
+    
+    if (currentRedPacket.value.msgId) {
+      openedRedPacketIds.value.add(currentRedPacket.value.msgId);
+    }
+    
+    // 可以在这里发送一个“已领取”的暂态消息告知对方
+    if (globalConversation.value && currentRedPacket.value.type === 'red_packet') {
+      const notifyMsg = new TextMessage(`__RP_RECEIVED__:${JSON.stringify({
+        amount: currentRedPacket.value.amount,
+        title: currentRedPacket.value.title
+      })}`);
+      globalConversation.value.send(notifyMsg, { transient: true }).catch(() => {});
+    }
+  }, 1200);
+};
+
+const saveQrCode = () => {
+  ElMessage.success('二维码已保存到相册');
 };
 
 const callDuration = ref(0);
@@ -643,12 +735,20 @@ const emojis = [
 ];
 
 const showNotificationBtn = ref(false);
+const showPWAGuide = ref(false);
 
 // 初始化加载设置
 onMounted(async () => {
   // 检查通知权限
   if ('Notification' in window && Notification.permission !== 'granted') {
     showNotificationBtn.value = true;
+  }
+
+  // 判断是否为移动端且未添加到主屏幕
+  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+  const isStandalone = window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone;
+  if (isMobile && !isStandalone) {
+    showPWAGuide.value = true;
   }
 
   // 检查是否已选择身份
@@ -997,6 +1097,24 @@ const goBack = () => {
   gap: 10px;
 }
 
+.pwa-guide-banner {
+  background: #fff4f4;
+  color: #ff4757;
+  padding: 8px 15px;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-bottom: 1px solid #ffecec;
+  animation: slideDown 0.3s ease;
+  z-index: 9;
+}
+
+@keyframes slideDown {
+  from { transform: translateY(-100%); }
+  to { transform: translateY(0); }
+}
+
 .chat-info {
   display: flex;
   flex-direction: column;
@@ -1126,6 +1244,28 @@ const goBack = () => {
   font-size: 12px;
   color: #666;
   background: #f0f0f0;
+}
+
+.system-message {
+  display: flex;
+  justify-content: center;
+  margin: 15px 0;
+  animation: fadeIn 0.4s ease;
+}
+
+.system-text {
+  background: rgba(0, 0, 0, 0.05);
+  color: #999;
+  font-size: 12px;
+  padding: 4px 12px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.system-text .el-icon {
+  font-size: 14px;
 }
 
 .message-item {
@@ -1389,61 +1529,71 @@ const goBack = () => {
 }
 
 /* 支付相关样式 */
+/* 红包气泡微调 */
 .red-packet-bubble {
   background: #fa9d3b;
-  width: 240px;
-  border-radius: 10px;
+  width: 230px;
+  border-radius: 6px;
   overflow: hidden;
   cursor: pointer;
-  transition: transform 0.2s;
+  transition: all 0.2s;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
 }
 
-.red-packet-bubble:active {
-  transform: scale(0.98);
+.red-packet-bubble.is-opened {
+  opacity: 0.7;
+}
+
+.red-packet-bubble:hover {
+  filter: brightness(1.05);
 }
 
 .rp-content {
+  padding: 12px;
   display: flex;
   align-items: center;
-  padding: 15px;
-  gap: 12px;
 }
 
 .rp-icon {
-  width: 40px;
-  height: 40px;
-  background: #fcd69f;
-  border-radius: 50%;
+  width: 36px;
+  height: 42px;
+  background: #fbd69f;
+  border-radius: 4px;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #fa9d3b;
+  margin-right: 12px;
+}
+
+.rp-icon .el-icon {
   font-size: 24px;
+  color: #cf4e46;
 }
 
 .rp-text {
-  color: white;
   flex: 1;
 }
 
 .rp-title {
-  font-size: 16px;
-  margin: 0;
-  margin-bottom: 4px;
-  font-weight: 500;
+  color: white;
+  font-size: 14px;
+  margin-bottom: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .rp-desc {
+  color: rgba(255, 255, 255, 0.8);
   font-size: 12px;
-  margin: 0;
-  opacity: 0.9;
 }
 
 .rp-footer {
   background: white;
-  padding: 8px 15px;
-  font-size: 12px;
+  padding: 4px 12px;
+  font-size: 11px;
   color: #999;
+  border-top: 1px solid #eee;
 }
 
 .payment-dialog .el-dialog__body {
@@ -1489,89 +1639,212 @@ const goBack = () => {
   object-fit: contain;
 }
 
-/* 红包详情弹窗 */
-.rp-detail-dialog {
+/* 红包详情弹窗增强 */
+.rp-detail-dialog :deep(.el-dialog) {
   background: transparent !important;
   box-shadow: none !important;
 }
 
-.rp-detail-dialog .el-dialog__header {
+.rp-detail-dialog :deep(.el-dialog__header) {
   display: none;
 }
 
+.rp-detail-dialog :deep(.el-dialog__body) {
+  padding: 0;
+}
+
 .rp-detail-content {
-  position: relative;
-  background: #f5f5f5;
-  border-radius: 10px;
+  background: #cf4e46;
+  border-radius: 12px;
   overflow: hidden;
-  height: 400px;
+  position: relative;
+  min-height: 420px;
+  display: flex;
+  flex-direction: column;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.rp-detail-content.is-opened {
+  background: #f1f1f1;
+}
+
+.rp-top-section {
+  flex: 1;
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
+  padding-top: 40px;
 }
 
 .rp-header-bg {
   position: absolute;
   top: 0;
   left: 0;
-  width: 100%;
+  right: 0;
+  height: 280px;
+  background: #e1564f;
+  border-radius: 0 0 50% 50% / 0 0 25% 25%;
+  z-index: 1;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+  transition: all 0.5s ease;
+}
+
+.rp-detail-content.is-opened .rp-header-bg {
   height: 100px;
-  background: #d9594c;
-  border-radius: 0 0 50% 50%;
 }
 
 .rp-detail-user {
-  z-index: 10;
-  margin-top: 50px;
+  position: relative;
+  z-index: 2;
   text-align: center;
+  color: #fbd69f;
 }
 
-.rp-detail-user p {
-  margin-top: 8px;
+.rp-detail-user .el-avatar {
+  border: 2px solid #fbd69f;
+  margin-bottom: 10px;
+}
+
+.rp-sender-name {
+  font-size: 18px;
+  font-weight: bold;
+  margin-bottom: 4px;
+}
+
+.rp-send-tip {
+  font-size: 14px;
+  opacity: 0.9;
+}
+
+.rp-detail-main {
+  position: relative;
+  z-index: 2;
+  margin-top: 30px;
+  text-align: center;
+  width: 100%;
+}
+
+.rp-blessing-large {
+  color: #fbd69f;
+  font-size: 20px;
+  margin-bottom: 40px;
+  padding: 0 20px;
+}
+
+.rp-open-btn {
+  width: 90px;
+  height: 90px;
+  background: #fbd69f;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto;
+  cursor: pointer;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+  border: 1px solid #f1d08a;
+  transition: transform 0.2s;
+}
+
+.rp-open-btn:active {
+  transform: scale(0.9) rotate(5deg);
+}
+
+.rp-open-btn span {
+  font-size: 36px;
+  color: #333;
+  font-weight: bold;
+}
+
+.rp-open-btn.is-rotating {
+  animation: rotateOpen 1.2s infinite linear;
+}
+
+@keyframes rotateOpen {
+  0% { transform: rotateY(0deg); }
+  100% { transform: rotateY(360deg); }
+}
+
+.rp-opened-main {
+  position: relative;
+  z-index: 2;
+  margin-top: 60px;
+  text-align: center;
+  color: #333;
+  width: 100%;
+  animation: fadeIn 0.5s ease;
+}
+
+.rp-blessing-small {
+  color: #666;
+  font-size: 14px;
+  margin-bottom: 10px;
+}
+
+.rp-amount-display {
+  font-size: 48px;
+  font-weight: bold;
+  color: #cf4e46;
+  margin-bottom: 10px;
+}
+
+.rp-amount-display .unit {
+  font-size: 16px;
+  margin-left: 4px;
+}
+
+.rp-status-text {
+  color: #999;
+  font-size: 12px;
+}
+
+.rp-qr-display {
+  padding: 20px;
+  background: white;
+  border-radius: 8px;
+  margin: 0 20px;
+}
+
+.rp-qr-img {
+  width: 180px;
+  height: 180px;
+  object-fit: contain;
+}
+
+.rp-qr-tip {
+  margin-top: 10px;
   color: #666;
   font-size: 14px;
 }
 
-.rp-detail-main {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-}
-
-.rp-blessing {
-  font-size: 18px;
-  color: #333;
-  margin-bottom: 20px;
-}
-
-.rp-amount {
-  font-size: 48px;
-  color: #d9594c;
-  font-weight: bold;
-}
-
-.rp-amount span {
-  font-size: 16px;
-  color: #d9594c;
-}
-
-.rp-qr-code img {
-  width: 200px;
-  height: 200px;
-  object-fit: contain;
-}
-
-.rp-close {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  color: rgba(255,255,255,0.8);
-  font-size: 24px;
+.rp-detail-footer {
+  padding: 20px;
+  text-align: center;
+  color: #576b95;
+  font-size: 14px;
   cursor: pointer;
-  z-index: 20;
+  z-index: 2;
+}
+
+.rp-close-outer {
+  position: absolute;
+  bottom: -60px;
+  left: 50%;
+  transform: translateX(-50%);
+  color: white;
+  font-size: 32px;
+  cursor: pointer;
+  opacity: 0.8;
+}
+
+.rp-close-outer:hover {
+  opacity: 1;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 /* 滚动条美化 */
 .message-list::-webkit-scrollbar {

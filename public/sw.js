@@ -40,3 +40,45 @@ self.addEventListener('fetch', (event) => {
     })
   );
 });
+
+// 处理来自主线程的消息
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SHOW_NOTIFICATION') {
+    const { title, body, icon, data } = event.data.payload;
+    
+    const options = {
+      body,
+      icon,
+      badge: '/logo.png', // 顶部状态栏小图标
+      data,
+      vibrate: [200, 100, 200],
+      actions: [
+        { action: 'open', title: '去回复' }
+      ]
+    };
+
+    event.waitUntil(
+      self.registration.showNotification(title, options)
+    );
+  }
+});
+
+// 处理点击通知事件
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      // 如果已经有打开的页面，则聚焦它
+      for (const client of clientList) {
+        if ('focus' in client) {
+          return client.focus();
+        }
+      }
+      // 否则打开新页面
+      if (clients.openWindow) {
+        return clients.openWindow('/');
+      }
+    })
+  );
+});

@@ -353,6 +353,21 @@ const setupGlobalListeners = () => {
         }, 65000);
         return;
       }
+      if (text.startsWith('__RP_RECEIVED__:')) {
+        try {
+          const data = JSON.parse(text.replace('__RP_RECEIVED__:', ''));
+          const senderName = message.from === user1.id ? user1.name : user2.name;
+          const systemMsg = {
+            id: 'sys_' + Date.now(),
+            contentType: 'system',
+            content: `${senderName}领取了你的红包`,
+            time: Date.now()
+          };
+          messages.value.push(systemMsg);
+          saveMessages();
+          return;
+        } catch (e) {}
+      }
     }
 
     const parsedMsg = parseMessage(message);
@@ -451,18 +466,28 @@ const notifyNewMessage = (msg: any, isChatPage: boolean) => {
     navigator.vibrate(200);
   }
 
-  // 3. 浏览器系统通知 (如果页面不在前台)
-  if (document.hidden) {
+  // 3. 优先使用 Service Worker 发送通知（即使在后台也能工作）
+  if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+    navigator.serviceWorker.controller.postMessage({
+      type: 'SHOW_NOTIFICATION',
+      payload: {
+        title: `💕 ${msg.sender}`,
+        body: msg.contentType === 'text' ? msg.content : `[${msg.contentType === 'image' ? '图片' : '语音'}]`,
+        icon: msg.avatar,
+        data: { url: window.location.origin + '/chat' }
+      }
+    });
+  } else if (document.hidden) {
+    // 降级方案：传统的浏览器通知
     if ('Notification' in window && Notification.permission === 'granted') {
       try {
         const n = new Notification(`💕 ${msg.sender}`, {
           body: msg.contentType === 'text' ? msg.content : `[${msg.contentType === 'image' ? '图片' : '语音'}]`,
           icon: msg.avatar,
-          tag: 'chat-msg', // 覆盖旧通知
-          requireInteraction: false, // 不强制用户交互
+          tag: 'chat-msg',
+          requireInteraction: false,
           silent: false
         });
-        // 兼容部分移动端点击事件
         n.onclick = () => {
           window.focus();
           n.close();
