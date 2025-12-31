@@ -39,6 +39,7 @@ export const globalIsOnline = ref(false);
 export const isPartnerOnline = ref(false);
 export const isConnecting = ref(false);
 export const isPartnerTyping = ref(false);
+export const openedRedPacketIds = ref(new Set<string>());
 let typingTimer: any = null;
 let heartbeatTimer: any = null;
 let partnerOnlineTimer: any = null;
@@ -357,6 +358,12 @@ const setupGlobalListeners = () => {
         try {
           const data = JSON.parse(text.replace('__RP_RECEIVED__:', ''));
           const senderName = message.from === user1.id ? user1.name : user2.name;
+          
+          // 标记红包为已领取
+          if (data.packetId) {
+            openedRedPacketIds.value.add(data.packetId);
+          }
+
           const systemMsg = {
             id: 'sys_' + Date.now(),
             contentType: 'system',

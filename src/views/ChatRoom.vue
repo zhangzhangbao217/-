@@ -78,12 +78,12 @@
             <div class="message-info">
               <span class="sender-name">{{ msg.from === user1.id ? user1.name : user2.name }}</span>
             </div>
-            <div class="bubble">
-              <!-- 发送状态标识 -->
-              <div v-if="msg.from === currentUser.id" class="message-status">
-                <el-icon v-if="msg.status === 'sending'" class="status-icon is-loading"><Loading /></el-icon>
-                <el-icon v-if="msg.status === 'error'" class="status-icon error" @click="retryMessage(msg)" title="点击重试"><Warning /></el-icon>
-              </div>
+          <div :class="['bubble', msg.contentType === 'red_packet' ? 'bubble-clear' : '']">
+            <!-- 发送状态标识 -->
+            <div v-if="msg.from === currentUser.id" class="message-status">
+              <el-icon v-if="msg.status === 'sending'" class="status-icon is-loading"><Loading /></el-icon>
+              <el-icon v-if="msg.status === 'error'" class="status-icon error" @click="retryMessage(msg)" title="点击重试"><Warning /></el-icon>
+            </div>
             
               <template v-if="msg.contentType === 'text'">
               <div class="text-content">
@@ -294,6 +294,10 @@
       class="rp-detail-dialog"
       :show-close="false"
       destroy-on-close
+      background="transparent"
+      :modal="true"
+      :align-center="true"
+      style="background: transparent !important; box-shadow: none !important; border: none !important; --el-dialog-bg-color: transparent !important; --el-dialog-box-shadow: none !important;"
     >
       <div class="rp-detail-content" :class="{ 'is-opened': isRedPacketOpened }">
         <div class="rp-top-section">
@@ -310,7 +314,7 @@
               class="rp-open-btn" 
               :class="{ 'is-rotating': isOpeningRedPacket }"
               @click="confirmOpenRedPacket"
-              v-if="currentRedPacket?.type === 'red_packet'"
+              v-if="currentRedPacket?.type === 'red_packet' && !currentRedPacket?.fromMe"
             >
               <span>開</span>
             </div>
@@ -338,9 +342,9 @@
         <div class="rp-detail-footer" v-if="isRedPacketOpened">
           <div class="rp-record-list">
             <div class="rp-record-item">
-              <el-avatar :size="24" :src="currentUser.avatar" />
+              <el-avatar :size="24" :src="currentRedPacket.fromMe ? partnerInfo.avatar : currentUser.avatar" />
               <div class="rp-record-info">
-                <p class="rp-record-name">{{ currentUser.name }}</p>
+                <p class="rp-record-name">{{ currentRedPacket.fromMe ? partnerInfo.name : currentUser.name }}</p>
                 <p class="rp-record-time">{{ formatTime(Date.now()) }}</p>
               </div>
               <p class="rp-record-amount" v-if="currentRedPacket?.type === 'red_packet'">{{ currentRedPacket?.amount }}元</p>
@@ -471,7 +475,8 @@ import {
   loadLocalHistory,
   user1,
   user2,
-  CALL_RING_URL
+  CALL_RING_URL,
+  openedRedPacketIds
 } from '../services/chatManager';
 import { 
   callStatus, 
@@ -524,10 +529,9 @@ const isInitialLoading = ref(false);
 const isRecording = ref(false);
 const showIdentityDialog = ref(false);
 const showPaymentDialog = ref(false);
-const showRedPacketDetail = ref(false);
-const isOpeningRedPacket = ref(false);
 const isRedPacketOpened = ref(false);
-const openedRedPacketIds = ref(new Set<string>());
+const isOpeningRedPacket = ref(false);
+const showRedPacketDetail = ref(false);
 const paymentType = ref('red_packet');
 const myQrCode = ref('');
 const currentRedPacket = ref<any>(null);
@@ -594,11 +598,13 @@ const handleOpenRedPacket = (msg: any) => {
       msgId: msg.id
     };
     
-    // 如果是自己发的，或者已经领取过（模拟），直接显示内容
+    // 如果是自己发的，点击只能查看，不能领取（除非对方已经领了，或者为了看一眼金额）
+    // 逻辑：如果是自己发的，直接显示已拆开状态（显示金额），但不会触发“领取”动作
     if (currentRedPacket.value.fromMe) {
       isRedPacketOpened.value = true;
     } else {
-      isRedPacketOpened.value = false;
+      // 对方发的，检查本地是否记录过已领取
+      isRedPacketOpened.value = openedRedPacketIds.value.has(msg.id);
     }
     
     isOpeningRedPacket.value = false;
@@ -610,6 +616,12 @@ const handleOpenRedPacket = (msg: any) => {
 
 const confirmOpenRedPacket = () => {
   if (isOpeningRedPacket.value || isRedPacketOpened.value) return;
+  
+  // 再次校验：自己不能领自己的
+  if (currentRedPacket.value?.fromMe) {
+    ElMessage.warning('这是你发出的红包');
+    return;
+  }
   
   isOpeningRedPacket.value = true;
   
@@ -1577,18 +1589,34 @@ const goBack = () => {
 
 /* 支付相关样式 */
 /* 红包气泡微调 */
+.bubble.bubble-clear {
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}
+
 .red-packet-bubble {
   background: #fa9d3b;
-  width: 230px;
-  border-radius: 6px;
+  width: 240px;
+  border-radius: 8px;
   overflow: hidden;
   cursor: pointer;
   transition: all 0.2s;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+  box-shadow: 0 2px 12px rgba(0,0,0,0.1);
 }
 
 .red-packet-bubble.is-opened {
-  opacity: 0.7;
+  background: #fbd69f;
+  opacity: 0.8;
+}
+
+.red-packet-bubble.is-opened .rp-icon {
+  background: #fce4c4;
+}
+
+.red-packet-bubble.is-opened .rp-title,
+.red-packet-bubble.is-opened .rp-desc {
+  color: #cf4e46;
 }
 
 .red-packet-bubble:hover {
@@ -1686,10 +1714,50 @@ const goBack = () => {
   object-fit: contain;
 }
 
-/* 红包详情弹窗增强 */
+/* 红包详情弹窗增强：彻底移除所有白色背景和边框 */
+.rp-detail-dialog {
+  background: transparent !important;
+  --el-dialog-bg-color: transparent !important;
+  --el-dialog-box-shadow: none !important;
+  --el-dialog-border-radius: 0 !important;
+}
+
 .rp-detail-dialog :deep(.el-dialog) {
   background: transparent !important;
+  background-color: transparent !important;
+  border: none !important;
   box-shadow: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  display: flex !important;
+  justify-content: center;
+  align-items: center;
+  overflow: visible !important;
+}
+
+.rp-detail-dialog :deep(.el-dialog__header) {
+  display: none !important;
+}
+
+.rp-detail-dialog :deep(.el-dialog__body) {
+  padding: 0 !important;
+  background: transparent !important;
+  background-color: transparent !important;
+}
+
+.rp-detail-dialog :deep(.el-overlay-dialog) {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent !important;
+}
+
+.rp-detail-dialog :deep(.el-overlay) {
+  background-color: rgba(0, 0, 0, 0.7) !important;
+  backdrop-filter: blur(5px);
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 
 .rp-detail-dialog :deep(.el-dialog__header) {
@@ -1703,16 +1771,19 @@ const goBack = () => {
 .rp-detail-content {
   background: #cf4e46;
   border-radius: 12px;
-  overflow: hidden;
+  overflow: visible;
   position: relative;
   min-height: 420px;
+  width: 300px;
   display: flex;
   flex-direction: column;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 10px 30px rgba(0,0,0,0.3);
 }
 
 .rp-detail-content.is-opened {
   background: #f1f1f1;
+  border-radius: 8px;
 }
 
 .rp-top-section {
@@ -2175,4 +2246,25 @@ const goBack = () => {
 }
 
 
+</style>
+
+<style>
+/* 全局覆盖 Element Plus 对红包弹窗的默认样式，彻底干掉白盒 */
+.rp-detail-dialog {
+  background: transparent !important;
+  box-shadow: none !important;
+  border: none !important;
+}
+.rp-detail-dialog .el-dialog {
+  background: transparent !important;
+  background-color: transparent !important;
+  box-shadow: none !important;
+  border: none !important;
+  --el-dialog-bg-color: transparent !important;
+}
+.rp-detail-dialog .el-dialog__header,
+.rp-detail-dialog .el-dialog__body {
+  background: transparent !important;
+  padding: 0 !important;
+}
 </style>
