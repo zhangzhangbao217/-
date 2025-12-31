@@ -327,7 +327,7 @@
             <template v-if="currentRedPacket?.type === 'red_packet'">
               <p class="rp-blessing-small">{{ currentRedPacket?.title }}</p>
               <h1 class="rp-amount-display">{{ currentRedPacket?.amount }}<span class="unit">元</span></h1>
-              <p class="rp-status-text">已存入零钱，可用于发红包</p>
+              <p class="rp-status-text">{{ currentRedPacket?.fromMe ? '红包已被对方领取' : '已存入零钱，可用于发红包' }}</p>
             </template>
             <template v-else>
                <div class="rp-qr-display">
