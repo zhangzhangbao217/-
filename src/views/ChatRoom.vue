@@ -1129,20 +1129,25 @@ const goBack = () => {
 
 <style scoped>
 .chat-container {
-  height: 100vh;
+  height: 100%;
+  width: 100%;
   display: flex;
   flex-direction: column;
   background: linear-gradient(135deg, #fff5f7 0%, #ffeef2 100%);
   position: relative;
   overflow: hidden;
+  overscroll-behavior: none;
 }
 
 .chat-header {
+  position: sticky;
+  top: 0;
   padding: 15px 20px;
-  background: rgba(255, 255, 255, 0.8);
-  backdrop-filter: blur(10px);
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(15px);
   border-bottom: 1px solid rgba(230, 57, 70, 0.1);
-  z-index: 10;
+  z-index: 100;
+  flex-shrink: 0;
 }
 
 .header-content {

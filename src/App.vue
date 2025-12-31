@@ -248,8 +248,23 @@ body {
 }
 
 #app-container {
-  min-height: 100vh;
+  height: 100vh;
+  height: 100dvh;
+  width: 100vw;
   position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 确保 html 和 body 也不滚动 */
+html, body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  position: fixed; /* 防止 iOS 橡皮筋效果 */
+  width: 100%;
 }
 
 /* 背景漂浮爱心样式 */
