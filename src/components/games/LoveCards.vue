@@ -248,11 +248,12 @@ const drawCard = () => {
   
   setTimeout(() => {
     const questions = currentQuestions.value
+    if (questions.length === 0) return
     let nextQ = questions[Math.floor(Math.random() * questions.length)]
     while (nextQ === currentQuestion.value && questions.length > 1) {
       nextQ = questions[Math.floor(Math.random() * questions.length)]
     }
-    currentQuestion.value = nextQ
+    currentQuestion.value = nextQ || ''
     exploredCount.value++
     isSwitching.value = false
   }, 400)

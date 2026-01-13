@@ -175,6 +175,8 @@ const movePlayer = (steps: number) => {
   
   // 检查格子效果
   const cell = boardCells[newPos]
+  if (!cell) return
+
   if (cell.type === 'fast' && cell.text === '前进 2 格') {
     setTimeout(() => {
       ElMessage.success('幸运！前进 2 格')
@@ -198,8 +200,10 @@ const movePlayer = (steps: number) => {
 const triggerTask = () => {
   const pos = currentPlayer.value === 1 ? p1Pos.value : p2Pos.value
   const cell = boardCells[pos]
+  if (!cell) return
+
   if (cell.type !== 'start' && cell.type !== 'goal') {
-    currentTask.value = { text: cell.text, icon: cell.icon }
+    currentTask.value = { text: cell.text, icon: cell.icon || '✨' }
     showTask.value = true
   } else {
     switchPlayer()
@@ -209,7 +213,7 @@ const triggerTask = () => {
 const completeTask = () => {
   showTask.value = false
   const cell = boardCells[currentPlayer.value === 1 ? p1Pos.value : p2Pos.value]
-  if (cell.text !== '再掷一次') {
+  if (cell && cell.text !== '再掷一次') {
     switchPlayer()
   }
 }

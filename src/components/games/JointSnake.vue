@@ -252,7 +252,7 @@ const update = () => {
   if (keys.p2Right) head2.x += velocity
 
   // 计算当前纽带长度
-  currentBondDist = Math.hypot(head1.x - head2.x, head1.y - head2.y)
+  currentBondDist = Math.hypot(head1.x - head2.x, head1.y - head2.y) || 0
 
   // 纽带断裂判定
   if (currentBondDist > maxBondDist) {
@@ -261,8 +261,9 @@ const update = () => {
   }
 
   // 边界检查
-  const w = canvasRef.value!.width
-  const h = canvasRef.value!.height
+  if (!canvasRef.value) return
+  const w = canvasRef.value.width
+  const h = canvasRef.value.height
   if (head1.x < 0 || head1.x > w || head1.y < 0 || head1.y > h ||
       head2.x < 0 || head2.x > w || head2.y < 0 || head2.y > h) {
     gameOver('撞到边界了')
@@ -280,13 +281,15 @@ const update = () => {
   // 更新身体（纽带物理效果：平滑插值）
   const bodyCount = body.length
   for (let i = 0; i < bodyCount; i++) {
+    const p = body[i]
+    if (!p) continue
     const ratio = (i + 1) / (bodyCount + 1)
     const targetX = head1.x + (head2.x - head1.x) * ratio
     const targetY = head1.y + (head2.y - head1.y) * ratio
     
     // 增加一点弹性效果
-    body[i].x += (targetX - body[i].x) * 0.2
-    body[i].y += (targetY - body[i].y) * 0.2
+    p.x += (targetX - p.x) * 0.2
+    p.y += (targetY - p.y) * 0.2
   }
 
   // 吃到食物
