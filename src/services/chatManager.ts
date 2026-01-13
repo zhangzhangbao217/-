@@ -36,8 +36,8 @@ export const user2 = reactive({
 export const syncCurrentUser = () => {
   const currentUserObj = AV.User.current();
   if (currentUserObj) {
-    user1.id = currentUserObj.id;
-    user1.name = currentUserObj.get('nickname') || currentUserObj.getUsername();
+    user1.id = currentUserObj.id || '';
+    user1.name = currentUserObj.get('nickname') || currentUserObj.getUsername() || '未知用户';
     user1.avatar = currentUserObj.get('avatar') || '/nv.jpg';
     
     // 如果用户设置了爱人信息，同步到 user2

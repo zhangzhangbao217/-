@@ -65,10 +65,11 @@
                class="maze-cell" 
                :class="getCellClass(index)">
             <!-- 轨迹 -->
-            <div v-for="t in trail" :key="t.pos" 
-                 v-if="t.pos === index" 
-                 class="trail-dot" 
-                 :style="{ opacity: t.opacity }"></div>
+            <template v-for="t in trail" :key="t.pos">
+              <div v-if="t.pos === index" 
+                   class="trail-dot" 
+                   :style="{ opacity: t.opacity }"></div>
+            </template>
 
             <!-- 角色 -->
             <div v-if="playerPos === index" class="player-avatar">
@@ -182,8 +183,14 @@ const steps = ref(0)
 const syncRate = ref(100)
 const pingPos = ref<number | null>(null)
 
-const mazeData = computed(() => levels[currentLevel.value - 1].data)
-const mazeSize = computed(() => levels[currentLevel.value - 1].size)
+const mazeData = computed(() => {
+  const level = levels[currentLevel.value - 1]
+  return level ? level.data : []
+})
+const mazeSize = computed(() => {
+  const level = levels[currentLevel.value - 1]
+  return level ? level.size : 0
+})
 
 const goalPos = computed(() => mazeData.value.indexOf(2))
 

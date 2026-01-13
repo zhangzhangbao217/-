@@ -154,6 +154,11 @@ import { user1 as currentUser, user2, syncCurrentUser } from '../services/chatMa
 
 const router = useRouter()
 
+interface Anniversary {
+  name: string
+  date: string
+}
+
 // 状态
 const loveStartDate = ref('2024-05-20 00:00:00')
 const quotesCount = ref(0)
@@ -161,7 +166,7 @@ const currentView = ref('loveDuration')
 const loveDuration = ref({ days: 0, hours: 0, minutes: 0, seconds: 0 })
 const displayLoveDuration = ref({ days: 0, hours: 0, minutes: 0, seconds: 0 })
 
-const anniversaryTarget = ref({ name: '一周年纪念日', date: '' })
+const anniversaryTarget = ref<Anniversary>({ name: '一周年纪念日', date: '' })
 const anniversaryCountdown = ref({ days: 0, hours: 0, minutes: 0, seconds: 0 })
 const displayAnniversaryCountdown = ref({ days: 0, hours: 0, minutes: 0, seconds: 0 })
 
@@ -170,7 +175,7 @@ const loveTreeLevel = computed(() => {
   // 基础等级是天数，每浇水 5 次额外增加 1 点成长值
   return loveDuration.value.days + Math.floor(waterCount.value / 5)
 })
-const futureAnniversaries = ref([])
+const futureAnniversaries = ref<Anniversary[]>([])
 
 // 统一情话库（与 SweetQuote.vue 保持一致）
 const builtInQuotes = [
@@ -231,7 +236,7 @@ const waterTree = async () => {
       tree.classList.add('tree-shake')
       setTimeout(() => tree.classList.remove('tree-shake'), 500)
     }
-  } catch (error) {
+  } catch (error: any) {
     ElMessage.error('浇水失败，请重试')
   }
 }
@@ -252,7 +257,7 @@ const refreshQuote = async () => {
       newQuote = allQuotes[Math.floor(Math.random() * allQuotes.length)]
     }
     currentQuote.value = newQuote
-  } catch (error) {
+  } catch (error: any) {
     // 报错则只从内置库刷新
     while (newQuote === oldQuote) {
       newQuote = builtInQuotes[Math.floor(Math.random() * builtInQuotes.length)]
@@ -269,7 +274,7 @@ const triggerEasterEgg = () => {
 }
 
 // 时间计算逻辑
-const formatTime = (num) => num.toString().padStart(2, '0')
+const formatTime = (num: number) => num.toString().padStart(2, '0')
 
 const calculateLoveDuration = () => {
   const start = dayjs(loveStartDate.value)
@@ -288,7 +293,7 @@ const calculateLoveDuration = () => {
 const generateFutureAnniversaries = () => {
   const start = dayjs(loveStartDate.value)
   const now = dayjs()
-  const anniversaries = []
+  const anniversaries: Anniversary[] = []
 
   for (let i = now.diff(start, 'year') + 1; i <= now.diff(start, 'year') + 3; i++) {
     const date = start.add(i, 'year').format('YYYY-MM-DD HH:mm:ss')
@@ -316,7 +321,10 @@ const calculateAnniversaryCountdown = () => {
 
   if (diffMs <= 0) {
     generateFutureAnniversaries()
-    if (futureAnniversaries.value.length > 0) anniversaryTarget.value = futureAnniversaries.value[0]
+    if (futureAnniversaries.value.length > 0) {
+      const firstAnniversary = futureAnniversaries.value[0]
+      if (firstAnniversary) anniversaryTarget.value = firstAnniversary
+    }
     return
   }
 
@@ -330,7 +338,7 @@ const calculateAnniversaryCountdown = () => {
   anniversaryCountdown.value.seconds = Math.floor((diffMs % oneMinuteMs) / 1000)
 }
 
-const toggleView = (view) => {
+const toggleView = (view: string) => {
   currentView.value = view
   if (view === 'loveDuration') {
     animateNumbers(loveDuration.value, displayLoveDuration.value)
@@ -339,7 +347,7 @@ const toggleView = (view) => {
   }
 }
 
-const animateNumbers = (targetObj, displayObj) => {
+const animateNumbers = (targetObj: any, displayObj: any) => {
   Object.keys(targetObj).forEach(key => {
     const start = displayObj[key]
     const end = targetObj[key]
@@ -348,8 +356,11 @@ const animateNumbers = (targetObj, displayObj) => {
       let current = start
       const step = Math.ceil(Math.abs(end - start) / 20)
       const timer = setInterval(() => {
-        if (current < end) current = Math.min(end, current + step)
-        else current = Math.max(end, current - step)
+        if (current < end) {
+          current = Math.min(end, current + step)
+        } else {
+          current = Math.max(end, current - step)
+        }
         displayObj[key] = current
         if (current === end) clearInterval(timer)
       }, 30)
@@ -385,7 +396,7 @@ const fetchDashboardData = async () => {
     } else {
       quotesCount.value = cloudCount
     }
-  } catch (error) {
+  } catch (error: any) {
     if (error.code === 101) {
       // 如果云端还没有表，默认显示内置的 6 条
       quotesCount.value = 6
@@ -399,13 +410,16 @@ const fetchDashboardData = async () => {
   refreshQuote()
 }
 
-let timer = null
+let timer: any = null
 onMounted(async () => {
   await fetchDashboardData()
   
   calculateLoveDuration()
   generateFutureAnniversaries()
-  if (futureAnniversaries.value.length > 0) anniversaryTarget.value = futureAnniversaries.value[0]
+  if (futureAnniversaries.value.length > 0) {
+    const firstAnniversary = futureAnniversaries.value[0]
+    if (firstAnniversary) anniversaryTarget.value = firstAnniversary
+  }
   calculateAnniversaryCountdown()
   
   displayLoveDuration.value = { ...loveDuration.value }
