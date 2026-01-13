@@ -17,20 +17,42 @@ const CONVERSATION_ID = 'sweet_love_chat_v1';
 const NOTIFY_SOUND_URL = 'https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3';
 export const CALL_RING_URL = 'https://assets.mixkit.co/active_storage/sfx/1359/1359-preview.mp3';
 
-// 用户定义
+// 用户定义 (改为从 AV.User 获取)
 export const user1 = reactive({
-  id: 'Hgtzsx',
-  name: '张张包',
+  id: '',
+  name: '加载中...',
   gender: 'female',
   avatar: '/nv.jpg'
 });
 
 export const user2 = reactive({
-  id: 'Partner',
-  name: '小黄包',
+  id: '',
+  name: '另一半',
   gender: 'male',
   avatar: '/nan.jpg'
 });
+
+// 获取当前登录用户并同步到 user1
+export const syncCurrentUser = () => {
+  const currentUserObj = AV.User.current();
+  if (currentUserObj) {
+    user1.id = currentUserObj.id;
+    user1.name = currentUserObj.get('nickname') || currentUserObj.getUsername();
+    user1.avatar = currentUserObj.get('avatar') || '/nv.jpg';
+    
+    // 如果用户设置了爱人信息，同步到 user2
+    const partnerId = currentUserObj.get('partnerId');
+    const partnerName = currentUserObj.get('partnerName');
+    const partnerAvatar = currentUserObj.get('partnerAvatar');
+    
+    if (partnerId) user2.id = partnerId;
+    if (partnerName) user2.name = partnerName;
+    if (partnerAvatar) user2.avatar = partnerAvatar;
+    
+    return true;
+  }
+  return false;
+};
 
 // 全局状态
 export const globalChatClient = ref<any>(null);
@@ -206,22 +228,11 @@ export const getRealtime = () => {
   return realtime;
 };
 
+// 初始化聊天
 export const initChat = async (silent = false) => {
-  // 从本地存储恢复身份
-  const savedUserId = localStorage.getItem('chat_user_id');
-  if (savedUserId) {
-    currentUser.value = savedUserId === user1.id ? user1 : user2;
-  }
-
-  if (globalChatClient.value && globalChatClient.value.id === currentUser.value.id) {
-    const status = globalChatClient.value.status;
-    if (status === 'opened' || status === 'connecting' || status === 'reconnecting') {
-      if (status === 'opened') globalIsOnline.value = true;
-      if (!globalConversation.value) {
-        globalConversation.value = await globalChatClient.value.getConversation(CONVERSATION_ID);
-      }
-      return;
-    }
+  if (!syncCurrentUser()) {
+    console.warn('用户未登录，跳过聊天初始化');
+    return;
   }
 
   if (isConnecting.value) return;
@@ -244,13 +255,24 @@ export const initChat = async (silent = false) => {
       initChat(true);
     });
 
-    globalConversation.value = await newClient.getConversation(CONVERSATION_ID);
-    if (!globalConversation.value) {
+    // 创建或获取唯一的两人会话
+    if (user1.id && user2.id) {
       globalConversation.value = await newClient.createConversation({
         members: [user1.id, user2.id],
-        name: '我们的甜蜜私聊',
+        name: `${user1.name} & ${user2.name} 的甜蜜私聊`,
         unique: true
       });
+      console.log('已加入会话:', globalConversation.value.id);
+    } else {
+      // 如果没有 partnerId，可以先加入一个默认公共测试频道或不加入
+      globalConversation.value = await newClient.getConversation(CONVERSATION_ID);
+      if (!globalConversation.value) {
+        globalConversation.value = await newClient.createConversation({
+          members: [user1.id],
+          name: '单人空间',
+          unique: true
+        });
+      }
     }
 
     // 立即同步一次云端历史消息

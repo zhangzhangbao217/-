@@ -1,96 +1,76 @@
 <template>
-
-  <el-container class="album-container">
-    <el-header class="album-header">
-      <div class="header-left">
-        <el-icon class="back-btn" @click="goBack">
-          <ArrowLeft />
-        </el-icon>
-        <span class="page-title">恋爱相册</span>
-      </div>
-    </el-header>
-    <el-main class="album-main">
+  <div class="album-content-wrapper">
+    <div class="album-main">
       <div class="page-title-bar">
-        <h2>我们的专属回忆 📸</h2>
-        <p>每一张都是心动的证据</p>
+        <h2>{{ title }} ✨</h2>
+        <p>每一帧都是心动的瞬间</p>
       </div>
-      <el-carousel
-          allow-drag
-          :interval="3000"
-          type="card"
-          class="fullscreen-carousel"
-          indicator-position="outside"
-      >
-        <el-carousel-item v-for="(img, idx) in photoList" :key="`album_${idx}`">
-          <div class="photo-wrapper">
-            <img
-                :src="img"
-                alt="你的照片"
-                class="fullscreen-img"
-                @click="toggleZoom(idx)"
+
+      <!-- 3D 场景 -->
+      <div class="scene-container">
+        <div class="scene">
+          <div class="ball" :style="ballStyle">
+            <div 
+              v-for="(img, idx) in photoList" 
+              :key="`photo_${idx}`"
+              class="photo-card"
+              :class="{ 'is-active': activeIdx === idx }"
+              :style="getPhotoStyle(idx)"
+              @click="openPhoto(idx)"
             >
-            <el-button
-                class="delete-btn"
-                :icon="Delete"
-                type="danger"
-                size="small"
-                @click.stop="deletePhoto(idx)"
-            />
+              <div class="photo-inner">
+                <img :src="img" alt="回忆" />
+                <div class="photo-frame"></div>
+              </div>
+            </div>
           </div>
-        </el-carousel-item>
-        <el-carousel-item v-if="photoList.length === 0">
-          <div class="empty-placeholder">
-            点击下方按钮上传照片~
-          </div>
-        </el-carousel-item>
-      </el-carousel>
+        </div>
+      </div>
+
+      <!-- 背景粒子效果 -->
+      <div class="particles">
+        <div v-for="i in 20" :key="i" class="particle"></div>
+      </div>
+
       <div class="upload-area">
         <el-upload
-            action="#"
-            :auto-upload="true"
-            :before-upload="handleUpload"
-            :show-file-list="false"
-            accept="image/*"
+          action="#"
+          :auto-upload="true"
+          :before-upload="handleUpload"
+          :show-file-list="false"
+          accept="image/*"
         >
           <el-button type="primary" class="romantic-upload-btn">
             <el-icon><Camera /></el-icon>
-            上传照片
+            添加新回忆
           </el-button>
         </el-upload>
       </div>
-      <div
-          v-if="isZoomed"
-          class="zoom-overlay"
-          @click="toggleZoom(-1)"
-      >
-        <img
-            :src="photoList[activeZoomIdx]"
-            alt="放大照片"
-            class="zoomed-img"
-            @click.stop
-        />
-      </div>
-    </el-main>
-  </el-container>
+
+      <!-- 放大展示 -->
+      <transition name="zoom">
+        <div v-if="isZoomed" class="zoom-overlay" @click="closeZoom">
+          <div class="zoomed-card" @click.stop>
+            <img :src="photoList[activeIdx]" alt="放大照片" />
+            <div class="zoomed-info">
+              <p>记录于 {{ new Date().toLocaleDateString() }}</p>
+              <el-button circle :icon="Delete" type="danger" size="small" @click="deletePhoto(activeIdx)" />
+            </div>
+            <el-icon class="close-icon" @click="closeZoom"><Close /></el-icon>
+          </div>
+        </div>
+      </transition>
+    </div>
+  </div>
 </template>
 
 <script setup>
-// 你的原有导入（一字未改）
-import { useRouter } from 'vue-router'
-import { ref, onMounted } from 'vue'
-import { ArrowLeft, Camera, Delete } from '@element-plus/icons-vue'
-import {
-  ElCarousel,
-  ElCarouselItem,
-  ElUpload,
-  ElButton,
-  ElIcon,
-  ElMessage
-} from 'element-plus'
+import { ref, onMounted, onUnmounted, computed } from 'vue'
+import { Camera, Delete, Close } from '@element-plus/icons-vue'
+import { ElMessage } from 'element-plus'
 
-// 你的原有逻辑（一字未改）
-const router = useRouter()
-const goBack = () => router.push('/home')
+const title = ref('我们的专属回忆')
+
 const staticPhotos = [
   '/4d73516d866b0b83635639b8f81e3c2c.jpg',
   '/9b73ec5057f40e63f099161a50f70820.jpg',
@@ -99,112 +79,146 @@ const staticPhotos = [
   '/df49bc6ca7d5b77ace3eeaec5d0008c6.jpg',
   '/ed2f20b1e6fa3f80f1544d618ccaa44c.jpg'
 ]
-const photoList = ref([...staticPhotos])
-const isZoomed = ref(false)
-const activeZoomIdx = ref(-1)
 
-// ===================== 仅修改这部分：替换为IndexedDB存储（大容量） =====================
+const photoList = ref([...staticPhotos])
+const activeIdx = ref(0)
+const isZoomed = ref(false)
+
+const rotationY = ref(0)
+const rotationX = ref(-10)
+const isReversing = ref(false)
+const autoOpenTimer = ref(null)
+const rotationTimer = ref(null)
+const reverseTimer = ref(null)
+
+const ballStyle = computed(() => ({
+  transform: `rotateX(${rotationX.value}deg) rotateY(${rotationY.value}deg)`
+}))
+
+const getPhotoStyle = (idx) => {
+  const total = photoList.value.length
+  const angle = (360 / total) * idx
+  const radius = window.innerWidth < 768 ? 150 : 250
+  
+  return {
+    transform: `rotateY(${angle}deg) translateZ(${radius}px)`,
+    zIndex: Math.round(Math.cos((rotationY.value + angle) * Math.PI / 180) * 100)
+  }
+}
+
+const startRotation = () => {
+  rotationTimer.value = setInterval(() => {
+    if (!isZoomed.value) {
+      const speed = 0.5
+      rotationY.value += isReversing.value ? -speed : speed
+    }
+  }, 16)
+
+  reverseTimer.value = setInterval(() => {
+    isReversing.value = !isReversing.value
+  }, 6000)
+}
+
+const startAutoOpen = () => {
+  autoOpenTimer.value = setInterval(() => {
+    if (!isZoomed.value) {
+      let minAngleDiff = 360
+      let frontIdx = 0
+      
+      photoList.value.forEach((_, idx) => {
+        const photoAngle = (360 / photoList.value.length) * idx
+        const currentTotalAngle = (rotationY.value + photoAngle) % 360
+        const diff = Math.abs(currentTotalAngle)
+        const normalizedDiff = Math.min(diff, 360 - diff)
+        
+        if (normalizedDiff < minAngleDiff) {
+          minAngleDiff = normalizedDiff
+          frontIdx = idx
+        }
+      })
+      
+      openPhoto(frontIdx)
+      
+      setTimeout(() => {
+        if (isZoomed.value) closeZoom()
+      }, 3000)
+    }
+  }, 5000)
+}
+
+const openPhoto = (idx) => {
+  activeIdx.value = idx
+  isZoomed.value = true
+}
+
+const closeZoom = () => {
+  isZoomed.value = false
+}
+
 let db = null
-// 初始化IndexedDB（大容量存储，替代localStorage）
 const initIndexedDB = () => {
   return new Promise((resolve) => {
     const request = window.indexedDB.open('LoveAlbumDB', 1)
-    // 首次创建/升级数据库
     request.onupgradeneeded = (e) => {
       db = e.target.result
-      // 创建存储表，主键自增
       if (!db.objectStoreNames.contains('photos')) {
         db.createObjectStore('photos', { keyPath: 'id', autoIncrement: true })
       }
     }
-    // 初始化成功
     request.onsuccess = (e) => {
       db = e.target.result
       resolve()
     }
-    // 兼容无IndexedDB的浏览器（降级为localStorage）
-    request.onerror = () => {
-      ElMessage.warning('浏览器不支持大容量存储，将使用普通存储')
-      resolve()
-    }
+    request.onerror = () => resolve()
   })
 }
 
-// 从IndexedDB读取照片（替代localStorage.getItem）
 const getPhotos = async () => {
   if (!db) await initIndexedDB()
-  // 有IndexedDB则读DB，无则读localStorage（降级）
   if (db) {
-    return new Promise((resolve) => {
-      const transaction = db.transaction('photos', 'readonly')
-      const store = transaction.objectStore('photos')
-      const request = store.getAll()
-      request.onsuccess = (e) => {
-        // 提取照片base64列表
-        const dynamicPhotos = e.target.result.map(item => item.base64)
-        // 合并静态照片和动态照片
-        photoList.value = [...staticPhotos, ...dynamicPhotos]
-        resolve(photoList.value)
-      }
-    })
-  } else {
-    // 降级逻辑（原有localStorage）
-    const raw = localStorage.getItem('loveAlbum')
-    const dynamicPhotos = raw ? JSON.parse(raw) : []
-    photoList.value = [...staticPhotos, ...dynamicPhotos]
+    const transaction = db.transaction('photos', 'readonly')
+    const store = transaction.objectStore('photos')
+    const request = store.getAll()
+    request.onsuccess = (e) => {
+      const dynamicPhotos = e.target.result.map(item => item.base64)
+      photoList.value = [...staticPhotos, ...dynamicPhotos]
+    }
   }
 }
 
-// 同步照片到IndexedDB（替代localStorage.setItem）
 const syncToStorage = async () => {
   if (!db) await initIndexedDB()
-  // 有IndexedDB则存DB，无则存localStorage（降级）
   if (db) {
-    // 清空旧数据（保证和photoList一致）
     const clearTx = db.transaction('photos', 'readwrite')
-    const clearStore = clearTx.objectStore('photos')
-    clearStore.clear()
-    // 写入新数据（仅保存动态上传的照片，不重复保存静态照片）
+    clearTx.objectStore('photos').clear()
     const tx = db.transaction('photos', 'readwrite')
     const store = tx.objectStore('photos')
     photoList.value.forEach(item => {
-      // 如果不是静态照片路径，则保存
       if (!staticPhotos.includes(item)) {
         store.add({ base64: item })
       }
     })
-    tx.oncomplete = () => {
-      ElMessage.success('照片已大容量保存，刷新不丢失')
-    }
-  } else {
-    // 降级逻辑（原有localStorage）
-    const dynamicPhotos = photoList.value.filter(item => !staticPhotos.includes(item))
-    localStorage.setItem('loveAlbum', JSON.stringify(dynamicPhotos))
-    ElMessage.success('照片已保存')
   }
 }
-// ===================== 存储层修改结束 =====================
 
-// 你的原有业务逻辑（一字未改）
 onMounted(async () => {
-  await getPhotos() // 仅改：调用新的读取函数
-  ElMessage.success('相册初始化完成')
+  await getPhotos()
+  startRotation()
+  startAutoOpen()
+})
+
+onUnmounted(() => {
+  clearInterval(rotationTimer.value)
+  clearInterval(reverseTimer.value)
+  clearInterval(autoOpenTimer.value)
 })
 
 const handleUpload = (file) => {
-  if (!file.type.startsWith('image/')) {
-    ElMessage.error('请选择图片文件！')
-    return false
-  }
   const reader = new FileReader()
   reader.onload = (e) => {
-    if (e.target.result) {
-      photoList.value.push(e.target.result)
-      syncToStorage() // 仅改：调用新的存储函数
-      ElMessage.success('照片上传成功！')
-    } else {
-      ElMessage.error('照片读取失败，请重试~')
-    }
+    photoList.value.push(e.target.result)
+    syncToStorage()
+    ElMessage.success('照片上传成功！')
   }
   reader.readAsDataURL(file)
   return false
@@ -212,72 +226,23 @@ const handleUpload = (file) => {
 
 const deletePhoto = (idx) => {
   photoList.value.splice(idx, 1)
-  syncToStorage() // 仅改：调用新的存储函数
-  ElMessage.success('照片已删除~')
-}
-
-const toggleZoom = (idx) => {
-  if (idx === -1) {
-    isZoomed.value = false
-    activeZoomIdx.value = -1
-  } else {
-    isZoomed.value = true
-    activeZoomIdx.value = idx
-  }
+  syncToStorage()
+  closeZoom()
+  ElMessage.success('照片已删除')
 }
 </script>
 
 <style scoped>
-.album-container {
-  min-height: 100vh;
+.album-content-wrapper {
+  min-height: 100%;
   background: transparent;
   position: relative;
-  overflow-x: hidden;
-}
-
-.album-header {
-  background: rgba(255, 255, 255, 0.6) !important;
-  backdrop-filter: blur(15px) !important;
-  -webkit-backdrop-filter: blur(15px) !important;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.4) !important;
-  display: flex;
-  align-items: center;
-  padding: 0 20px;
-  position: sticky;
-  top: 0;
-  z-index: 100;
-  height: 64px !important;
-}
-
-.back-btn {
-  cursor: pointer;
-  font-size: 20px;
-  color: #ff6b81;
-  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-  padding: 8px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.5);
-  margin-right: 8px;
-}
-
-.back-btn:hover {
-  color: #ff4757;
-  transform: scale(1.1) rotate(-10deg);
-  background: white;
-  box-shadow: 0 4px 12px rgba(255, 107, 129, 0.2);
-}
-
-.page-title {
-  font-size: 18px;
-  font-weight: 600;
-  color: #ff4757;
-  letter-spacing: 1px;
 }
 
 .album-main {
-  padding: 40px 20px;
-  max-width: 1200px;
-  margin: 0 auto;
+  padding: 20px 0;
+  position: relative;
+  z-index: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -285,173 +250,169 @@ const toggleZoom = (idx) => {
 
 .page-title-bar {
   text-align: center;
-  margin-bottom: 40px;
-  background: rgba(255, 255, 255, 0.7) !important;
-  backdrop-filter: blur(12px) !important;
-  -webkit-backdrop-filter: blur(12px) !important;
-  border: 1px solid rgba(255, 255, 255, 0.6) !important;
-  padding: 20px 40px !important;
-  border-radius: 30px !important;
-  box-shadow: 0 10px 30px rgba(255, 182, 193, 0.2) !important;
-  animation: fadeInDown 0.8s ease-out;
-}
-
-@keyframes fadeInDown {
-  from { opacity: 0; transform: translateY(-20px); }
-  to { opacity: 1; transform: translateY(0); }
+  margin-bottom: 20px;
 }
 
 .page-title-bar h2 {
-  color: #ff4757;
-  font-size: 2.2rem !important;
-  margin-bottom: 8px;
-  font-weight: 700;
-  text-shadow: 2px 2px 4px rgba(255, 71, 87, 0.1);
-  letter-spacing: 2px !important;
+  color: #ff6b81;
+  font-size: 28px;
+  margin-bottom: 5px;
 }
 
-.page-title-bar p {
-  color: #ff7f9d !important;
-  font-size: 1.1rem !important;
-  opacity: 0.9;
-  letter-spacing: 1px !important;
-}
-
-.fullscreen-carousel {
+.scene-container {
   width: 100%;
-  height: 65vh !important;
-  margin-bottom: 40px;
+  height: 50vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  perspective: 1200px;
 }
 
-.photo-wrapper {
+.scene {
+  transform-style: preserve-3d;
+  width: 200px;
+  height: 200px;
+}
+
+.ball {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transform-style: preserve-3d;
+  transition: transform 0.1s linear;
+}
+
+.photo-card {
+  position: absolute;
+  width: 120px;
+  height: 120px;
+  left: 50%;
+  top: 50%;
+  margin-left: -60px;
+  margin-top: -60px;
+  transition: all 0.5s ease;
+  cursor: pointer;
+}
+
+.photo-inner {
   width: 100%;
   height: 100%;
   position: relative;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(255, 255, 255, 0.4);
-  border-radius: 20px;
-  overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.5);
-}
-
-.fullscreen-img {
-  max-width: 95% !important;
-  max-height: 95% !important;
-  object-fit: contain;
   border-radius: 12px;
-  box-shadow: 0 15px 45px rgba(255, 107, 129, 0.25);
-  transition: transform 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) !important;
+  overflow: hidden;
+  border: 2px solid rgba(255, 255, 255, 0.8);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
 }
 
-.photo-wrapper:hover .fullscreen-img {
-  transform: scale(1.05) !important;
-}
-
-.delete-btn {
-  position: absolute;
-  top: 15px;
-  right: 15px;
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  background: rgba(255, 71, 87, 0.8) !important;
-  border: none !important;
-  backdrop-filter: blur(5px);
-  z-index: 10;
-  transition: all 0.3s ease !important;
-}
-
-.delete-btn:hover {
-  background: #ff4757 !important;
-  transform: scale(1.1) rotate(90deg) !important;
-}
-
-.empty-placeholder {
+.photo-inner img {
   width: 100%;
   height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #ff7f9d;
-  font-size: 1.5rem;
-  font-weight: 600;
+  object-fit: cover;
+}
+
+.photo-frame {
+  position: absolute;
+  inset: 0;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  pointer-events: none;
+}
+
+.photo-card:hover {
+  transform: scale(1.2) !important;
+  z-index: 1000 !important;
 }
 
 .upload-area {
-  margin-top: 20px;
+  margin-top: auto;
+  padding-bottom: 40px;
+  z-index: 10;
 }
 
 .romantic-upload-btn {
-  background: linear-gradient(135deg, #ff4757, #ff6b81) !important;
-  border: none !important;
-  padding: 18px 50px !important;
-  font-size: 1.2rem !important;
-  border-radius: 50px !important;
-  box-shadow: 0 10px 25px rgba(255, 71, 87, 0.3) !important;
-  color: #fff !important;
-  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) !important;
+  background: linear-gradient(45deg, #ff758c, #ff7eb3);
+  border: none;
+  padding: 12px 30px;
+  border-radius: 25px;
+  font-weight: bold;
+  box-shadow: 0 4px 15px rgba(255, 117, 140, 0.4);
 }
 
-.romantic-upload-btn:hover {
-  transform: translateY(-5px) scale(1.05) !important;
-  box-shadow: 0 15px 35px rgba(255, 71, 87, 0.4) !important;
+.particles {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.particle {
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  background: #fff;
+  border-radius: 50%;
+  opacity: 0.3;
+  animation: float 10s infinite linear;
+}
+
+@keyframes float {
+  0% { transform: translateY(100vh) scale(1); opacity: 0; }
+  50% { opacity: 0.5; }
+  100% { transform: translateY(-100px) scale(0.5); opacity: 0; }
 }
 
 .zoom-overlay {
   position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  background: rgba(255, 245, 248, 0.98);
-  backdrop-filter: blur(10px);
+  inset: 0;
+  background: rgba(0, 0, 0, 0.9);
   display: flex;
-  align-items: center;
   justify-content: center;
+  align-items: center;
   z-index: 2000;
-  cursor: zoom-out;
-  animation: fadeIn 0.3s ease-out;
+  backdrop-filter: blur(5px);
 }
 
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+.zoomed-card {
+  position: relative;
+  max-width: 90vw;
+  max-height: 80vh;
+  animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
-.zoomed-img {
-  max-width: 90%;
-  max-height: 90%;
-  object-fit: contain;
-  border-radius: 20px;
-  box-shadow: 0 20px 60px rgba(255, 107, 129, 0.4);
-  animation: zoomIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+.zoomed-card img {
+  max-width: 100%;
+  max-height: 70vh;
+  border-radius: 12px;
+  border: 4px solid #fff;
+  box-shadow: 0 0 50px rgba(255, 117, 140, 0.3);
 }
 
-@keyframes zoomIn {
-  from { transform: scale(0.8); opacity: 0; }
+.zoomed-info {
+  margin-top: 15px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: #ccc;
+}
+
+.close-icon {
+  position: absolute;
+  top: -40px;
+  right: -10px;
+  font-size: 30px;
+  color: #fff;
+  cursor: pointer;
+}
+
+@keyframes popIn {
+  from { transform: scale(0.5); opacity: 0; }
   to { transform: scale(1); opacity: 1; }
 }
 
-@media (max-width: 768px) {
-  .fullscreen-carousel {
-    height: 50vh !important;
-  }
-  
-  .page-title-bar {
-    padding: 15px 25px !important;
-  }
-  
-  .page-title-bar h2 {
-    font-size: 1.8rem !important;
-  }
-  
-  .romantic-upload-btn {
-    padding: 15px 35px !important;
-    font-size: 1rem !important;
-  }
+.zoom-enter-active, .zoom-leave-active {
+  transition: opacity 0.3s;
+}
+.zoom-enter-from, .zoom-leave-to {
+  opacity: 0;
 }
 </style>
 

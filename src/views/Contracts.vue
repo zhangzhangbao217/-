@@ -1,14 +1,7 @@
 <!-- Contracts.vue -->
 <template>
-  <el-container class="contract-container">
-    <el-header class="contract-header">
-      <div class="header-left">
-        <el-icon class="back-btn" @click="goBack"><ArrowLeft /></el-icon>
-        <span class="page-title">专属契约</span>
-      </div>
-    </el-header>
-
-    <el-main class="contract-main">
+  <div class="contract-content-wrapper">
+    <div class="contract-main">
       <div class="page-intro">
         <h2>我们的甜蜜约定 📜</h2>
         <p>签下这份契约，就要遵守一辈子哦</p>
@@ -27,11 +20,11 @@
           <div class="contract-signatures">
             <div class="sig">
               <span class="label">甲方：</span>
-              <span class="name">张张包</span>
+              <span class="name">{{ currentUser.name }}</span>
             </div>
             <div class="sig">
               <span class="label">乙方：</span>
-              <span class="name">小黄包</span>
+              <span class="name">{{ user2.name }}</span>
             </div>
           </div>
           <div class="contract-footer">
@@ -39,17 +32,13 @@
           </div>
         </div>
       </div>
-    </el-main>
-  </el-container>
+    </div>
+  </div>
 </template>
 
 <script setup lang="ts">
 import { ref } from 'vue'
-import { useRouter } from 'vue-router'
-import { ArrowLeft } from '@element-plus/icons-vue'
-
-const router = useRouter()
-const goBack = () => router.push('/home')
+import { currentUser, user2 } from '../services/chatManager'
 
 const contracts = ref([
   {
@@ -71,54 +60,14 @@ const contracts = ref([
 </script>
 
 <style scoped>
-.contract-container {
-  min-height: 100vh;
+.contract-content-wrapper {
+  min-height: 100%;
   background: transparent;
   position: relative;
-  overflow-x: hidden;
-}
-
-.contract-header {
-  background: rgba(255, 255, 255, 0.6) !important;
-  backdrop-filter: blur(15px) !important;
-  -webkit-backdrop-filter: blur(15px) !important;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.4) !important;
-  display: flex;
-  align-items: center;
-  padding: 0 20px;
-  position: sticky;
-  top: 0;
-  z-index: 100;
-  height: 64px !important;
-}
-
-.back-btn {
-  cursor: pointer;
-  font-size: 20px;
-  color: #ff6b81;
-  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-  padding: 8px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.5);
-  margin-right: 8px;
-}
-
-.back-btn:hover {
-  color: #ff4757;
-  transform: scale(1.1) rotate(-10deg);
-  background: white;
-  box-shadow: 0 4px 12px rgba(255, 107, 129, 0.2);
-}
-
-.page-title {
-  font-size: 18px;
-  font-weight: 600;
-  color: #ff4757;
-  letter-spacing: 1px;
 }
 
 .contract-main {
-  padding: 40px 20px;
+  padding: 20px 0;
   max-width: 1000px;
   margin: 0 auto;
   position: relative;

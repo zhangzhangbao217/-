@@ -1,14 +1,7 @@
 <!-- BucketList.vue -->
 <template>
-  <el-container class="bucket-container">
-    <el-header class="bucket-header">
-      <div class="header-left">
-        <el-icon class="back-btn" @click="goBack"><ArrowLeft /></el-icon>
-        <span class="page-title">爱情清单</span>
-      </div>
-    </el-header>
-
-    <el-main class="bucket-main">
+  <div class="bucket-content-wrapper">
+    <div class="bucket-main">
       <div class="page-intro">
         <h2>我们要一起做的 100 件事 📝</h2>
         <p>余生很长，想和你一件件去实现</p>
@@ -37,18 +30,13 @@
           </el-col>
         </el-row>
       </div>
-    </el-main>
-  </el-container>
+    </div>
+  </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
-import { ArrowLeft, CircleCheck, CircleCheckFilled } from '@element-plus/icons-vue'
-import { ElMessage } from 'element-plus'
-
-const router = useRouter()
-const goBack = () => router.push('/home')
+import { CircleCheck, CircleCheckFilled } from '@element-plus/icons-vue'
 
 interface BucketItem {
   text: string
@@ -81,28 +69,17 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.bucket-container {
-  min-height: 100vh;
-  background: linear-gradient(135deg, #fff5f7 0%, #ffeef2 100%);
+.bucket-content-wrapper {
+  min-height: 100%;
+  background: transparent;
+  position: relative;
 }
-.love-bg-decoration {
-  position: absolute;
-  top: 0; left: 0; width: 100%; height: 100%;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='30' height='30' fill='%23ffccd5' opacity='0.15'%3E%3Cpath d='M15 25C12.343 25 10 22.657 10 20c0-3 5-7 5-7s5 4 5 7c0 2.657-2.343 5-5 5z'/%3E%3C/svg%3E");
-  z-index: 0; pointer-events: none;
-}
-.bucket-header {
-  background: rgba(255, 255, 255, 0.9);
-  backdrop-filter: blur(10px);
-  display: flex; align-items: center; padding: 0 20px;
-  box-shadow: 0 2px 10px rgba(255, 182, 193, 0.2);
-  z-index: 10;
-}
-.header-left { display: flex; align-items: center; gap: 10px; }
-.back-btn { font-size: 20px; cursor: pointer; color: #e63946; }
-.page-title { font-size: 18px; font-weight: 600; color: #e63946; }
 
-.bucket-main { position: relative; z-index: 1; padding: 20px; max-width: 1000px; margin: 0 auto; }
+.bucket-main {
+  padding: 20px 0;
+  position: relative;
+  z-index: 1;
+}
 .page-intro { text-align: center; margin-bottom: 40px; }
 .page-intro h2 { color: #e63946; margin-bottom: 10px; }
 .page-intro p { color: #999; margin-bottom: 20px; }

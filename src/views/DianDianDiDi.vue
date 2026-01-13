@@ -1,24 +1,52 @@
 <!-- src/views/DianDianDiDi.vue -->
 <template>
-  <el-container class="dian-container">
-    <!-- 顶部导航栏 -->
-    <el-header class="dian-header">
-      <div class="header-left">
-        <el-icon class="back-btn" @click="goBack">
-          <ArrowLeft />
-        </el-icon>
-        <span class="page-title">恋爱点点滴滴</span>
-      </div>
-    </el-header>
+  <div class="dian-content-wrapper">
+    <div class="dian-main">
+      <div class="content-wrapper">
+        <!-- 页面标题 + 新增按钮 -->
+        <div class="page-title-bar">
+          <h2>我们的独家记忆 📖</h2>
+          <p>记录生活里的每一个小瞬间</p>
+          <el-button type="primary" class="add-btn" @click="dialogVisible = true">
+            记录瞬间
+          </el-button>
+        </div>
 
-    <el-main class="dian-main">
-      <!-- 页面标题 + 新增按钮 -->
-      <div class="page-title-bar">
-        <h2>我们的独家记忆 📖</h2>
-        <p>记录生活里的每一个小瞬间</p>
-        <el-button type="primary" class="add-btn" @click="dialogVisible = true">
-          记录瞬间
-        </el-button>
+        <!-- 时间轴列表 -->
+        <div class="timeline-wrapper">
+          <el-empty v-if="memoryList.length === 0" description="还没有记录哦，快去写下第一条吧~" />
+          <el-timeline v-else>
+            <el-timeline-item
+                v-for="(item, index) in sortedMemoryList"
+                :key="index"
+                :timestamp="item.date"
+                placement="top"
+            >
+              <!-- 自定义节点图标 -->
+              <template #dot>
+                <div class="heart-dot">❤️</div>
+              </template>
+              
+              <el-card class="memory-card" @click="viewDetail(item)">
+                <div class="card-header">
+                  <div class="title-with-mood">
+                    <h3>{{ item.title }}</h3>
+                    <span class="mood-tag" v-if="item.mood">{{ item.mood }}</span>
+                  </div>
+                  <el-button
+                      type="text"
+                      class="delete-btn"
+                      @click.stop="deleteItem(item.id)"
+                  >
+                    <el-icon><Delete /></el-icon>
+                  </el-button>
+                </div>
+                <p class="memory-content">{{ item.content }}</p>
+                <div class="click-tip">点击查看详情 ✨</div>
+              </el-card>
+            </el-timeline-item>
+          </el-timeline>
+        </div>
       </div>
 
       <!-- 新增记录弹窗 -->
@@ -67,42 +95,6 @@
         </template>
       </el-dialog>
 
-      <!-- 时间轴列表 -->
-      <div class="timeline-wrapper">
-        <el-empty v-if="memoryList.length === 0" description="还没有记录哦，快去写下第一条吧~" />
-        <el-timeline v-else>
-          <el-timeline-item
-              v-for="(item, index) in sortedMemoryList"
-              :key="index"
-              :timestamp="item.date"
-              placement="top"
-          >
-            <!-- 自定义节点图标 -->
-            <template #dot>
-              <div class="heart-dot">❤️</div>
-            </template>
-            
-            <el-card class="memory-card" @click="viewDetail(item)">
-              <div class="card-header">
-                <div class="title-with-mood">
-                  <h3>{{ item.title }}</h3>
-                  <span class="mood-tag" v-if="item.mood">{{ item.mood }}</span>
-                </div>
-                <el-button
-                    type="text"
-                    class="delete-btn"
-                    @click.stop="deleteItem(item.id)"
-                >
-                  <el-icon><Delete /></el-icon>
-                </el-button>
-              </div>
-              <p class="memory-content">{{ item.content }}</p>
-              <div class="click-tip">点击查看详情 ✨</div>
-            </el-card>
-          </el-timeline-item>
-        </el-timeline>
-      </div>
-
       <!-- 详情弹窗 -->
       <el-dialog
           v-model="detailVisible"
@@ -126,24 +118,20 @@
           </div>
         </div>
       </el-dialog>
-    </el-main>
-  </el-container>
+    </div>
+  </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
 import {
-  ElContainer, ElHeader, ElMain, ElCard, ElButton,
+  ElCard, ElButton,
   ElTimeline, ElTimelineItem, ElDialog, ElInput,
   ElForm, ElFormItem, ElDatePicker, ElEmpty, ElIcon, ElMessage, ElMessageBox,
   ElRadioButton, ElRadioGroup
 } from 'element-plus'
-import { ArrowLeft, Delete } from '@element-plus/icons-vue'
+import { Delete } from '@element-plus/icons-vue'
 import dayjs from 'dayjs'
-
-const router = useRouter()
-const goBack = () => router.push('/home')
 
 interface Memory {
   id: number
@@ -153,16 +141,14 @@ interface Memory {
   mood?: string
 }
 
-// 初始数据（硬编码在代码中，所有人打开都能看到）
+// 初始数据
 const memoryList = ref<Memory[]>([
-  { id: 1, date: '2019-12-29', title: '相遇', content: '那是我们的第一次认识，就这样开始了长达我们六年的感情', mood: '🥰 甜蜜' },
+  { id: 1, date: '2019-12-29', title: '相遇', content: '那是我们的第一次认识，就这样开始了长达我们的感情', mood: '🥰 甜蜜' },
   { id: 2, date: '2020-07-25', title: '奔现', content: '这是我们的第一次见面！！', mood: '😄 开心' },
   { id: 3, date: '2020-10-01', title: '第二次见面', content: '这一次我们见面，在一起看了电影，一起爬山', mood: '🥺 感动' },
-  { id: 4, date: '2021-07-02', title: '玩耍', content: '发生了很多甜蜜的事情......', mood: '🥰 甜蜜' },
-  { id: 5, date: '2021-12-10', title: '吃', content: '这一次张张包给了好多好多好吃的。', mood: '🥰 甜蜜' },
-  { id: 6, date: '2022-12-01', title: '......', content: '......', mood: '🥰 甜蜜' },
-  { id: 7, date: '2024-05-01', title: '见家长', content: '第一次进他领居家，见了我的爸爸妈妈奶奶姐姐，我们一家人都很开心。', mood: '😄 开心' },
-  { id: 8, date: '2025-07-31', title: '一起', content: '结束了长达五年的异地恋，开启了我们甜蜜的生活', mood: '🥰 甜蜜' }
+  { id: 5, date: '2021-12-10', title: '吃', content: `这一次我们给了好多好多好吃的。`, mood: '🥰 甜蜜' },
+  { id: 7, date: '2024-05-01', title: '见家长', content: '第一次见家长，见了爸爸妈妈奶奶姐姐，我们一家人都很开心。', mood: '😄 开心' },
+  { id: 8, date: '2025-07-31', title: '在一起', content: '结束了长达五年的异地恋，开启了我们甜蜜的生活', mood: '🥰 甜蜜' }
 ])
 
 const dialogVisible = ref(false)
@@ -247,57 +233,18 @@ const saveToStorage = () => {
 </script>
 
 <style scoped>
-.dian-container {
-  min-height: 100vh;
+/* 页面整体风格 */
+.dian-content-wrapper {
+  min-height: 100%;
   background: transparent;
   position: relative;
-  overflow-x: hidden;
 }
 
-.dian-header {
-  background-color: rgba(255, 255, 255, 0.7);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  display: flex;
-  align-items: center;
-  padding: 0 20px;
-  box-shadow: 0 4px 15px rgba(255, 192, 203, 0.15);
-  z-index: 10;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.3);
-}
-
-.header-left {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.back-btn {
-  font-size: 20px;
-  cursor: pointer;
-  color: #e63946;
-  padding: 8px;
-  border-radius: 50%;
-  transition: all 0.3s;
-}
-
-.back-btn:hover {
-  background-color: rgba(230, 57, 70, 0.1);
-  transform: scale(1.1);
-}
-
-.page-title {
-  font-size: 18px;
-  font-weight: 600;
-  color: #e63946;
-}
-
+/* 主内容区 */
 .dian-main {
+  padding: 20px 0;
   position: relative;
   z-index: 1;
-  padding: 20px;
-  max-width: 800px;
-  margin: 0 auto;
 }
 
 .page-title-bar {

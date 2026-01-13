@@ -1,8 +1,7 @@
 <template>
-  <div class="chat-container">
+  <div class="chat-content-wrapper">
     <div class="chat-header">
       <div class="header-content">
-        <el-button :icon="ArrowLeft" circle @click="goBack" class="header-btn" />
         <div class="chat-info">
           <span class="chat-name">💕 甜蜜私聊</span>
           <span v-if="isPartnerTyping" class="chat-status typing">对方正在输入...</span>
@@ -292,12 +291,12 @@
       v-model="showRedPacketDetail"
       width="320px"
       class="rp-detail-dialog"
+      modal-class="rp-detail-dialog-overlay"
       :show-close="false"
       destroy-on-close
-      background="transparent"
       :modal="true"
       :align-center="true"
-      style="background: transparent !important; box-shadow: none !important; border: none !important; --el-dialog-bg-color: transparent !important; --el-dialog-box-shadow: none !important;"
+      :append-to-body="true"
     >
       <div class="rp-detail-content" :class="{ 'is-opened': isRedPacketOpened }">
         <div class="rp-top-section">
@@ -439,7 +438,6 @@ import { ref, onMounted, onUnmounted, nextTick, watch, computed, reactive } from
 import { useRouter } from 'vue-router';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { 
-  ArrowLeft, 
   MoreFilled, 
   Picture, 
   Star, 
@@ -1126,14 +1124,10 @@ const handleMoreCommand = async (command: string) => {
     URL.revokeObjectURL(url);
   }
 };
-
-const goBack = () => {
-  router.push('/home');
-};
 </script>
 
 <style scoped>
-.chat-container {
+.chat-content-wrapper {
   height: 100%;
   width: 100%;
   display: flex;
@@ -1727,18 +1721,17 @@ const goBack = () => {
 /* 红包详情弹窗增强：彻底移除所有白色背景和边框 */
 .rp-detail-dialog {
   background: transparent !important;
-  --el-dialog-bg-color: transparent !important;
-  --el-dialog-box-shadow: none !important;
-  --el-dialog-border-radius: 0 !important;
+  border: none !important;
+  box-shadow: none !important;
 }
 
 .rp-detail-dialog :deep(.el-dialog) {
   background: transparent !important;
-  background-color: transparent !important;
   border: none !important;
   box-shadow: none !important;
   padding: 0 !important;
-  margin: 0 !important;
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
   display: flex !important;
   justify-content: center;
   align-items: center;
@@ -1752,7 +1745,6 @@ const goBack = () => {
 .rp-detail-dialog :deep(.el-dialog__body) {
   padding: 0 !important;
   background: transparent !important;
-  background-color: transparent !important;
 }
 
 .rp-detail-dialog :deep(.el-overlay-dialog) {
@@ -1763,32 +1755,27 @@ const goBack = () => {
 }
 
 .rp-detail-dialog :deep(.el-overlay) {
-  background-color: rgba(0, 0, 0, 0.7) !important;
-  backdrop-filter: blur(5px);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
-
-.rp-detail-dialog :deep(.el-dialog__header) {
-  display: none;
-}
-
-.rp-detail-dialog :deep(.el-dialog__body) {
-  padding: 0;
+  background-color: rgba(0, 0, 0, 0.75) !important;
+  backdrop-filter: blur(8px);
 }
 
 .rp-detail-content {
   background: #cf4e46;
-  border-radius: 12px;
+  border-radius: 16px;
   overflow: visible;
   position: relative;
   min-height: 420px;
   width: 300px;
   display: flex;
   flex-direction: column;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+  transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+  animation: rpPopIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes rpPopIn {
+  from { transform: scale(0.5) translateY(20px); opacity: 0; }
+  to { transform: scale(1) translateY(0); opacity: 1; }
 }
 
 .rp-detail-content.is-opened {
@@ -2260,21 +2247,22 @@ const goBack = () => {
 
 <style>
 /* 全局覆盖 Element Plus 对红包弹窗的默认样式，彻底干掉白盒 */
-.rp-detail-dialog {
-  background: transparent !important;
-  box-shadow: none !important;
-  border: none !important;
-}
-.rp-detail-dialog .el-dialog {
+.rp-detail-dialog,
+.rp-detail-dialog .el-dialog,
+.rp-detail-dialog .el-dialog__content,
+.rp-detail-dialog .el-dialog__header,
+.rp-detail-dialog .el-dialog__body {
   background: transparent !important;
   background-color: transparent !important;
   box-shadow: none !important;
   border: none !important;
   --el-dialog-bg-color: transparent !important;
+  --el-dialog-box-shadow: none !important;
 }
-.rp-detail-dialog .el-dialog__header,
-.rp-detail-dialog .el-dialog__body {
-  background: transparent !important;
-  padding: 0 !important;
+
+/* 确保遮罩层是半透明黑，突出悬浮感 */
+.rp-detail-dialog-overlay .el-overlay {
+  background-color: rgba(0, 0, 0, 0.75) !important;
+  backdrop-filter: blur(8px) !important;
 }
 </style>

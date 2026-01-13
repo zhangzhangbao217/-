@@ -42,7 +42,10 @@
         <!-- 记住密码 & 忘记密码 -->
         <el-form-item class="form-actions">
           <el-checkbox v-model="loginForm.remember" size="large">记住密码</el-checkbox>
-          <el-link type="primary" @click="handleForgetPwd">忘记密码？</el-link>
+          <div class="right-links">
+            <el-link type="primary" @click="router.push('/register')" class="register-link">立即注册</el-link>
+            <el-link type="info" @click="handleForgetPwd">忘记密码？</el-link>
+          </div>
         </el-form-item>
 
         <!-- 登录按钮 -->
@@ -57,6 +60,27 @@
             登 录
           </el-button>
         </el-form-item>
+
+        <!-- 第三方登录入口 -->
+        <div class="social-login">
+          <div class="divider">
+            <span>或者使用以下方式登入</span>
+          </div>
+          <div class="social-icons">
+            <div class="social-icon wechat" @click="handleSocialLogin('wechat')">
+              <div class="icon-wrapper">
+                <img src="https://img.icons8.com/color/48/000000/weixing.png" alt="WeChat" />
+              </div>
+              <span>微信</span>
+            </div>
+            <div class="social-icon qq" @click="handleSocialLogin('qq')">
+              <div class="icon-wrapper">
+                <img src="https://img.icons8.com/color/48/000000/qq.png" alt="QQ" />
+              </div>
+              <span>QQ</span>
+            </div>
+          </div>
+        </div>
       </el-form>
     </div>
   </div>
@@ -65,7 +89,9 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { useRouter } from 'vue-router' // 路由跳转（需配置router）
+import { useRouter } from 'vue-router'
+// @ts-ignore
+import AV from 'leancloud-storage'
 
 // 表单引用
 const loginFormRef = ref(null)
@@ -76,55 +102,51 @@ const router = useRouter()
 
 // 登录表单数据
 const loginForm = reactive({
-  username: '', // 账号
+  username: '', // 账号 (手机号)
   password: '', // 密码
   remember: false // 记住密码
 })
 
-// 表单验证规则（可自定义正则）
+// 表单验证规则
 const loginRules = reactive({
   username: [
-    { required: true, message: '请输入登录账号', trigger: 'blur' },
-    { pattern: /^Hgtzsx$/, message: '账号格式错误（请重新输入小笨蛋）', trigger: 'blur' }
+    { required: true, message: '请输入手机号', trigger: 'blur' },
+    { pattern: /^1[3-9]\d{9}$/, message: '请输入正确的手机号', trigger: 'blur' }
   ],
   password: [
     { required: true, message: '请输入登录密码', trigger: 'blur' },
-    { pattern: /^hgt1314521zsx$/, message: '密码格式错误（请重新输入，大笨蛋）', trigger: 'blur' }
+    { min: 6, message: '密码至少6位', trigger: 'blur' }
   ]
 })
 
 // 登录逻辑
 const handleLogin = async () => {
   try {
-    // 第一步：表单验证
     await loginFormRef.value.validate()
     isLoading.value = true
 
-    // 第二步：模拟登录请求（替换为真实接口）
-    setTimeout(() => {
-      // 模拟登录成功
-      ElMessage.success('暗号正确！欢迎进入甜蜜小屋～')
-      // 存储token（模拟登录状态）
-      localStorage.setItem('token', 'love_token_1314521')
-      // 标记为管理员，允许修改内容
-      localStorage.setItem('isAdmin', 'true')
-      // 记住密码逻辑
-      if (loginForm.remember) {
-        localStorage.setItem('loginInfo', JSON.stringify({
-          username: loginForm.username,
-          password: loginForm.password
-        }))
-      } else {
-        localStorage.removeItem('loginInfo')
-      }
-      // 跳转到首页（需配置/home路由）
-      router.push('/home')
-      isLoading.value = false
-    }, 1000) // 模拟接口延迟1秒
-
+    // 使用 LeanCloud 真实登录
+    const user = await AV.User.logIn(loginForm.username, loginForm.password)
+    
+    ElMessage.success(`欢迎回来，${user.get('nickname') || '亲爱的'}！`)
+    
+    // 存储状态
+    localStorage.setItem('chat_user_id', user.id)
+    localStorage.setItem('isAdmin', user.get('isAdmin') ? 'true' : 'false')
+    
+    if (loginForm.remember) {
+      localStorage.setItem('loginInfo', JSON.stringify({
+        username: loginForm.username,
+        password: loginForm.password
+      }))
+    } else {
+      localStorage.removeItem('loginInfo')
+    }
+    
+    router.push('/home')
   } catch (error) {
-    // 表单验证失败提示
-    ElMessage.error('请输入正确的账号密码～')
+    ElMessage.error('登录失败：' + (error.message || '账号或密码错误'))
+  } finally {
     isLoading.value = false
   }
 }
@@ -135,6 +157,66 @@ const handleForgetPwd = () => {
     confirmButtonText: '确定',
     type: 'info'
   })
+}
+
+// 第三方登录处理
+const handleSocialLogin = async (platform) => {
+  const platformName = platform === 'wechat' ? '微信' : 'QQ'
+  // 注意：LeanCloud 对内置的 'weixin' 和 'qq' 类型有严格的 session 校验。
+  // 在开发/模拟环境下，我们使用自定义的类型名称（如 wechat_sim）来绕过验证。
+  const authType = platform === 'wechat' ? 'wechat_sim' : 'qq_sim'
+  
+  try {
+    isLoading.value = true
+    
+    // 弹窗提示：模拟第三方授权过程
+    await ElMessageBox.confirm(
+      `即将跳转至 ${platformName} 进行授权登录。由于当前为开发环境，我们将模拟授权成功的结果。`,
+      `${platformName} 授权`,
+      {
+        confirmButtonText: '模拟授权',
+        cancelButtonText: '取消',
+        type: 'info'
+      }
+    )
+
+    // 模拟从第三方获取的授权数据
+    // 注意：LeanCloud 的 weixin/qq 登录要求 authData 中必须包含 openid
+    const authData = {
+      openid: `mock_openid_${Math.random().toString(36).substr(2, 9)}`,
+      access_token: `mock_token_${Math.random().toString(36).substr(2, 9)}`,
+      expires_in: 7200
+    }
+
+    // 使用 LeanCloud 的 loginWithAuthData 进行登录/注册
+    // 这会自动关联第三方账号，如果用户不存在则自动创建
+    const user = await AV.User.loginWithAuthData(authData, authType)
+    
+    // 设置一些默认信息（如果是新用户）
+    if (!user.get('nickname')) {
+      await user.save({
+        nickname: `${platformName}用户_${user.id.substr(-4)}`,
+        avatar: platform === 'wechat' 
+          ? 'https://img.icons8.com/color/96/000000/weixing.png' 
+          : 'https://img.icons8.com/color/96/000000/qq.png'
+      })
+    }
+
+    ElMessage.success(`登录成功！欢迎回来，${user.get('nickname')}`)
+    
+    // 存储必要信息
+    localStorage.setItem('chat_user_id', user.id)
+    localStorage.setItem('isAdmin', user.get('isAdmin') ? 'true' : 'false')
+    
+    router.push('/home')
+  } catch (error) {
+    if (error !== 'cancel') {
+      console.error(`${platformName}登录出错:`, error)
+      ElMessage.error(`${platformName}登录失败: ${error.message || '未知错误'}`)
+    }
+  } finally {
+    isLoading.value = false
+  }
 }
 
 // 页面初始化：读取记住的密码
@@ -264,6 +346,66 @@ onMounted(() => {
 
 .login-btn:active {
   transform: scale(0.98);
+}
+
+/* 第三方登录样式 */
+.social-login {
+  margin-top: 30px;
+  text-align: center;
+}
+
+.divider {
+  position: relative;
+  margin-bottom: 20px;
+  border-bottom: 1px solid #eee;
+}
+
+.divider span {
+  position: absolute;
+  top: -10px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #fff;
+  padding: 0 15px;
+  color: #999;
+  font-size: 14px;
+}
+
+.social-icons {
+  display: flex;
+  justify-content: center;
+  gap: 40px;
+}
+
+.social-icon {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.icon-wrapper {
+  width: 54px;
+  height: 54px;
+  background: #fdfdfe;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  transition: all 0.3s ease;
+}
+
+.social-icon img {
+  width: 32px;
+  height: 32px;
+}
+
+.social-icon:hover .icon-wrapper {
+  transform: translateY(-5px) scale(1.1);
+  box-shadow: 0 8px 20px rgba(255, 105, 180, 0.2);
 }
 
 /* 响应式适配（手机端） */
