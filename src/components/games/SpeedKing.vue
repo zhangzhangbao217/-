@@ -316,7 +316,7 @@ const endGame = (instantWinner?: string) => {
     winner.value = p1Score.value > p2Score.value ? 'p1' : 'p2'
   }
 
-  currentPunish.value = punishments[Math.floor(Math.random() * punishments.length)]
+  currentPunish.value = punishments[Math.floor(Math.random() * punishments.length)] || ''
   resultVisible.value = true
 }
 

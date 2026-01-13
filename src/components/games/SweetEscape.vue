@@ -545,6 +545,8 @@ const handleDeath = () => {
 
 const resetLevel = () => {
   const config = levels[currentLevel.value - 1]
+  if (!config) return
+  
   p1.x = config.p1.x
   p1.y = config.p1.y
   p1.vx = p1.vy = 0
@@ -577,7 +579,10 @@ const nextLevel = async () => {
     await GameSaveService.saveProgress('escape', currentLevel.value)
     resetLevel()
     isTransitioning.value = false
-    ElMessage.success(`🎉 进入第 ${currentLevel.value} 关：${levels[currentLevel.value-1].name}`)
+    const levelInfo = levels[currentLevel.value-1]
+    if (levelInfo) {
+      ElMessage.success(`🎉 进入第 ${currentLevel.value} 关：${levelInfo.name}`)
+    }
   }, 1000)
 }
 

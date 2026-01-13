@@ -209,9 +209,12 @@ const update = (timestamp: number) => {
   // 移动音符
   const moveNotes = (notes: Note[]) => {
     for (let i = notes.length - 1; i >= 0; i--) {
-      notes[i].pos += 0.8
-      if (notes[i].pos > 100) {
-        if (!notes[i].hit) {
+      const note = notes[i]
+      if (!note) continue
+      
+      note.pos += 0.8
+      if (note.pos > 100) {
+        if (!note.hit) {
           handleMiss()
         }
         notes.splice(i, 1)

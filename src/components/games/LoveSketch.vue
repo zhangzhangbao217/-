@@ -142,7 +142,7 @@ const startGame = () => {
   showResult.value = false
   isCorrect.value = false
   timeLeft.value = 60
-  currentWord.value = words[Math.floor(Math.random() * words.length)]
+  currentWord.value = words[Math.floor(Math.random() * words.length)] || ''
   
   nextTick(() => {
     initCanvas()
@@ -199,8 +199,21 @@ const stopDrawing = () => {
 const getPos = (e: MouseEvent | TouchEvent) => {
   const canvas = canvasRef.value!
   const rect = canvas.getBoundingClientRect()
-  const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX
-  const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY
+  
+  let clientX = 0
+  let clientY = 0
+  
+  if ('touches' in e) {
+    const touch = e.touches[0]
+    if (touch) {
+      clientX = touch.clientX
+      clientY = touch.clientY
+    }
+  } else {
+    clientX = e.clientX
+    clientY = e.clientY
+  }
+  
   return {
     x: clientX - rect.left,
     y: clientY - rect.top

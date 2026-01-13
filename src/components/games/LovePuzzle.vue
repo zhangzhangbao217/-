@@ -181,7 +181,7 @@ const boardStyle = computed(() => ({
   aspectRatio: '1/1',
   width: '100%',
   maxWidth: '500px',
-  position: 'relative',
+  position: 'relative' as const,
   background: 'rgba(255,255,255,0.05)',
   borderRadius: '15px',
   overflow: 'hidden',
@@ -195,7 +195,7 @@ const getPieceStyle = (piece: Piece) => {
     height: `${size}%`,
     left: `${piece.currentX}%`,
     top: `${piece.currentY}%`,
-    position: 'absolute',
+    position: 'absolute' as const,
     zIndex: draggingId.value === piece.id ? 10 : 1,
     transition: draggingId.value === piece.id ? 'none' : 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
     cursor: piece.isCorrect ? 'default' : 'grab'
@@ -225,8 +225,19 @@ const startDrag = (e: MouseEvent | TouchEvent, piece: Piece) => {
   if (piece.isCorrect) return
   
   draggingId.value = piece.id
-  const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX
-  const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY
+  let clientX = 0
+  let clientY = 0
+
+  if ('touches' in e) {
+    const touch = e.touches[0]
+    if (touch) {
+      clientX = touch.clientX
+      clientY = touch.clientY
+    }
+  } else {
+    clientX = e.clientX
+    clientY = e.clientY
+  }
   
   startX = clientX
   startY = clientY
@@ -242,8 +253,21 @@ const startDrag = (e: MouseEvent | TouchEvent, piece: Piece) => {
 const handleDrag = (e: MouseEvent | TouchEvent) => {
   if (draggingId.value === null || !containerRef.value) return
   
-  const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX
-  const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY
+  let clientX = 0
+  let clientY = 0
+
+  if ('touches' in e) {
+    const touch = e.touches[0]
+    if (touch) {
+      clientX = touch.clientX
+      clientY = touch.clientY
+    } else {
+      return // No touch points
+    }
+  } else {
+    clientX = e.clientX
+    clientY = e.clientY
+  }
   
   const dx = ((clientX - startX) / containerRef.value.clientWidth) * 100
   const dy = ((clientY - startY) / containerRef.value.clientHeight) * 100
